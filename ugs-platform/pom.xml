@@ -168,6 +168,7 @@
     <module>ugs-platform-plugin-setup-wizard</module>
     <module>ProbeModule</module>
     <module>DowelModule</module>
+    <module>SquareUpModule</module>
     <module>GcodeTools</module>
     <module>ugs-platform-welcome-page</module>
   </modules>
