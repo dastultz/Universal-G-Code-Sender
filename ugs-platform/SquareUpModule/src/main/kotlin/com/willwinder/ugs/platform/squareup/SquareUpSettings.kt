@@ -22,7 +22,7 @@ import com.willwinder.universalgcodesender.model.UnitUtils
 
 /*
   @author dastultz
-  Created on Feb 14, 2019
+  Created on Mar 13, 2019
 */
 
 data class SquareUpSettings(
@@ -33,8 +33,10 @@ data class SquareUpSettings(
     val stockDiameter: Double,
     val stockLength: Double,
     val bitDiameter: Double,
+    val stepOver: Double,
+    val maxStepDown: Double,
+    val totalStepDown: Double,
     val feed: Double,
-    val cutDepth: Double,
     val safetyHeight: Double,
     val units: UnitUtils.Units
 )

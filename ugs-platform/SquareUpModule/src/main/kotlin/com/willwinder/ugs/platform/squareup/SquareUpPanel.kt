@@ -61,7 +61,7 @@ enum class Operation(private val i18nKey: String, val milling: Boolean) {
     TURN_FACING("turning-face", false);
 
     override fun toString(): String {
-        return Localization.getString("${i18nBase}.${i18nKey}")
+        return Localization.getString("$i18nBase.$i18nKey")
     }
 
     val isMilling: Boolean
@@ -91,15 +91,18 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
     private val stockDiameter = SpinnerNumberModel(5.0, 0.0, doubleSpinnerMax, 0.1)
     private val stockLength = SpinnerNumberModel(10.0, 0.0, doubleSpinnerMax, 0.1)
     private val bitDiameter = SpinnerNumberModel(3.17, 0.0, doubleSpinnerMax, 0.1)
+    private val stepOver = SpinnerNumberModel(1.0, 0.0, doubleSpinnerMax, 0.1)
+    private val maxStepDown = SpinnerNumberModel(3.0, 0.0, doubleSpinnerMax, 0.1)
+    private val totalStepDown = SpinnerNumberModel(10.0, 0.0, doubleSpinnerMax, 0.1)
     private val cuttingFeedRate = SpinnerNumberModel(100.0, 1.0, doubleSpinnerMax, 1.0)
-    private val cutDepth = SpinnerNumberModel(2.0, 0.0, doubleSpinnerMax, 0.1)
     private val safetyHeight = SpinnerNumberModel(5.0, 0.0, doubleSpinnerMax, 0.1)
     private val units = JComboBox(SwingHelpers.getUnitOptions())
 
     private val fineDimensionSpinners = listOf(
         stockWidth, stockDepth, stockHeight,
         stockDiameter, stockLength,
-        cutDepth, safetyHeight, bitDiameter
+        safetyHeight, bitDiameter,
+        stepOver, maxStepDown, totalStepDown
     )
 
     private val coarseDimensionSpinners = listOf(
@@ -107,15 +110,15 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
     )
 
     // Buttons
-    private val generateGCodeButton = JButton(Localization.getString("${i18nBase}.generate"))
-    private val exportGCodeButton = JButton(Localization.getString("${i18nBase}.export"))
+    private val generateGCodeButton = JButton(Localization.getString("$i18nBase.generate"))
+    private val exportGCodeButton = JButton(Localization.getString("$i18nBase.export"))
 
     private val generator = SquareUpGenerator(settings)
-    private val preview = SquareUpPreview(Localization.getString("${i18nBase}.preview"), generator)
+    private val preview = SquareUpPreview(Localization.getString("$i18nBase.preview"), generator)
 
     private val backend = CentralLookup.getDefault().lookup(BackendAPI::class.java)
 
-    val currentOperation: Operation
+    private val currentOperation: Operation
         get() = operation.selectedItem as Operation
 
     val settings: SquareUpSettings
@@ -127,8 +130,10 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
             getDouble(this.stockDiameter),
             getDouble(this.stockLength),
             getDouble(this.bitDiameter),
+            getDouble(this.stepOver),
+            getDouble(this.maxStepDown),
+            getDouble(this.totalStepDown),
             getDouble(this.cuttingFeedRate),
-            getDouble(this.cutDepth),
             getDouble(this.safetyHeight),
             selectedUnit(this.units.selectedIndex)
         )
@@ -155,11 +160,11 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
 
         val fixedTopPanel = JPanel(MigLayout("fillx, wrap 2, inset 2", "grow"))
         fixedTopPanel.border = BorderFactory.createTitledBorder(
-            frameBorder, Localization.getString("${i18nBase}.global")
+            frameBorder, Localization.getString("$i18nBase.global")
         )
         topComponent.add(fixedTopPanel, BorderLayout.NORTH)
 
-        fixedTopPanel.add(JLabel(Localization.getString("${i18nBase}.operation")), "growx")
+        fixedTopPanel.add(JLabel(Localization.getString("$i18nBase.operation")), "growx")
         fixedTopPanel.add(operation, "growx")
         fixedTopPanel.add(JLabel(Localization.getString("gcode.setting.units")), "growx")
         fixedTopPanel.add(units, "growx")
@@ -213,13 +218,13 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
         cutting feedrate
         lead-in feedrate
         milling
-            tool diameter
-            safety height
+            √tool diameter
+            √safety height
             type climb/conventional
             face milling
-                overlap "stepover"
-                max cut "max stepdown"
-                total cut "total stepdown"
+                √overlap "stepover"
+                √max cut "max stepdown"
+                √total cut "total stepdown"
             side milling
                 orientation: left, right, front, back
                 overlap "max depth of cut"
@@ -234,7 +239,6 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
                 total cut "total stepover"
          */
 
-
         scrollablePanel.removeAll()
         val stockPanel = JPanel(MigLayout("fillx, wrap 2, inset 2"))
         val operationPanel = JPanel(MigLayout("fillx, wrap 2, inset 2"))
@@ -243,11 +247,11 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
 
         stockPanel.border = BorderFactory.createTitledBorder(
             frameBorder,
-            Localization.getString("${i18nBase}.stock")
+            Localization.getString("$i18nBase.stock")
         )
         operationPanel.border = BorderFactory.createTitledBorder(
             frameBorder,
-            Localization.getString("${i18nBase}.operation-params")
+            Localization.getString("$i18nBase.operation-params")
         )
 
         val isMilling = currentOperation.isMilling
@@ -256,6 +260,9 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
             stockPanel.appendSpinner("stock-width", stockWidth)
             stockPanel.appendSpinner("stock-depth", stockDepth)
             stockPanel.appendSpinner("stock-height", stockHeight)
+            stockPanel.appendSpinner("stepover", stepOver)
+            stockPanel.appendSpinner("maxstepdown", maxStepDown)
+            stockPanel.appendSpinner("totalstepdown", totalStepDown)
         } else {
             stockPanel.appendSpinner("stock-diameter", stockDiameter)
             stockPanel.appendSpinner("stock-length", stockLength)
@@ -266,7 +273,6 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
             operationPanel.appendSpinner("gcode.setting.endmill-diameter", bitDiameter)
         }
         operationPanel.appendSpinner("gcode.setting.feed", cuttingFeedRate)
-        operationPanel.appendSpinner("gcode.setting.cut-depth", cutDepth)
         operationPanel.appendSpinner("gcode.setting.safety-height", safetyHeight)
 
         topComponent.revalidate()
@@ -274,7 +280,7 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
     }
 
     private fun JComponent.appendSpinner(i18nKey: String, model: SpinnerNumberModel) {
-        val fullI18NKey = if (i18nKey.contains(".")) i18nKey else "${i18nBase}.$i18nKey"
+        val fullI18NKey = if (i18nKey.contains(".")) i18nKey else "$i18nBase.$i18nKey"
         add(JLabel(Localization.getString(fullI18NKey)), "growx")
         add(JSpinner(model), "growx")
     }
@@ -357,8 +363,10 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
                 this.stockDiameter.value = settings.stockDiameter
                 this.stockLength.value = settings.stockLength
                 this.bitDiameter.value = settings.bitDiameter
+                this.stepOver.value = settings.stepOver
+                this.maxStepDown.value = settings.maxStepDown
+                this.totalStepDown.value = settings.totalStepDown
                 this.cuttingFeedRate.value = settings.feed
-                this.cutDepth.value = settings.cutDepth
                 this.safetyHeight.value = settings.safetyHeight
                 this.units.selectedIndex = unitIdx(settings.units)
             } catch (exc: Exception) {

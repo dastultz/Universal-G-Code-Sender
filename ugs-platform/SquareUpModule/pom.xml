@@ -22,7 +22,7 @@
       <plugin>
         <groupId>org.jetbrains.kotlin</groupId>
         <artifactId>kotlin-maven-plugin</artifactId>
-        <version>1.1.1</version> <!-- set this with ${kotlin.version} -->
+        <version>${ugs.kotlin.version}</version>
         <executions>
           <execution>
             <id>compile</id>

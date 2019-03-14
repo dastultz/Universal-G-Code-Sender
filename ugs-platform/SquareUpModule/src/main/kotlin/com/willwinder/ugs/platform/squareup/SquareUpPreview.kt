@@ -36,8 +36,8 @@ private const val CYLINDER_SLICES = 24
 private const val CYLINDER_STACKS = 1
 
 class SquareUpPreview(
-    val description: String,
-    val generator: SquareUpGenerator
+    description: String,
+    private val generator: SquareUpGenerator
 ) : Renderable(7, description) {
 
     companion object {
@@ -80,19 +80,20 @@ class SquareUpPreview(
     }
 
     private fun drawTurningPreview(drawable: GLAutoDrawable) {
-        val mult: Double = generator.unitMultiplier()
+        val convert = generator::unitConverter
         val settings = generator.settings
-        val diameter = (settings.stockDiameter / 2.0) * mult
-        val length = settings.stockLength * mult
+        val diameter = convert(settings.stockDiameter / 2.0)
+        val length = convert(settings.stockLength)
 
         glut.glutSolidCylinder(diameter, length, CYLINDER_SLICES, CYLINDER_STACKS)
     }
 
     private fun drawMillingPreview(drawable: GLAutoDrawable) {
-        val mult: Double = generator.unitMultiplier()
-        val width = (generator.settings.stockWidth * mult).toFloat()
-        val height = (0 - generator.settings.stockHeight * mult).toFloat()
-        val depth = (generator.settings.stockDepth.toFloat() * mult).toFloat()
+        val convert = generator::unitConverter
+        val width = (convert(generator.settings.stockWidth)).toFloat()
+        val mid = (convert(0 - generator.settings.totalStepDown).toFloat())
+        val height = (convert(0 - generator.settings.stockHeight).toFloat())
+        val depth = (convert(generator.settings.stockDepth).toFloat())
 
         val gl = drawable.gl.gL2
 
@@ -106,6 +107,10 @@ class SquareUpPreview(
         val upper_right_near = floatArrayOf(width, 0f, 0f)
         val upper_left_far = floatArrayOf(0f, depth, 0f)
         val upper_right_far = floatArrayOf(width, depth, 0f)
+        val mid_left_near = floatArrayOf(0f, 0f, mid)
+        val mid_right_near = floatArrayOf(width, 0f, mid)
+        val mid_left_far = floatArrayOf(0f, depth, mid)
+        val mid_right_far = floatArrayOf(width, depth, mid)
         val lower_left_near = floatArrayOf(0f, 0f, height)
         val lower_right_near = floatArrayOf(width, 0f, height)
         val lower_left_far = floatArrayOf(0f, depth, height)
@@ -113,10 +118,10 @@ class SquareUpPreview(
 
         drawSolidBox(
             gl,
-            upper_left_near,
-            upper_right_near,
-            upper_right_far,
-            upper_left_far,
+            mid_left_near,
+            mid_right_near,
+            mid_right_far,
+            mid_left_far,
             lower_left_near,
             lower_right_near,
             lower_right_far,
@@ -129,10 +134,10 @@ class SquareUpPreview(
             upper_right_near,
             upper_right_far,
             upper_left_far,
-            lower_left_near,
-            lower_right_near,
-            lower_right_far,
-            lower_left_far
+            mid_left_near,
+            mid_right_near,
+            mid_right_far,
+            mid_left_far
         )
 
         gl.glFlush()
