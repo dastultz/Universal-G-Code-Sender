@@ -44,14 +44,51 @@ class SquareUpGenerator(var settings: SquareUpSettings) {
             spindleOn()
         }
 
-        millFacing(turtle)
+        when (settings.operation) {
+            Operation.MILL_FACING -> millFacing(turtle)
+            Operation.TURN_FACING -> turnFacing(turtle)
+        }
 
         generator.end()
     }
 
-    private fun millFacing(turtle: Turtle) = with(turtle) {
-        safeHeight(settings.safetyHeight)
+    private fun turnFacing(turtle: Turtle) = with(turtle) {
+        val scaler = UnitUtils.scaleUnits(UnitUtils.Units.MM, settings.units) // scale literal distances to user units
+        val clearance = settings.safetyHeight
+        val stockRadius = settings.stockDiameter / 2
+        val retractGap = scaler * 5 // 5 mm safety gap
+        val retractX = stockRadius + retractGap
+        val approachGap = scaler * 3
+        val entryX = stockRadius + approachGap
+        val center = 0 - settings.crossCenter
 
+        val stepDown =
+            if (settings.maxStepDown > settings.totalStepDown) settings.totalStepDown
+            else settings.maxStepDown
+        val totalFullPasses = floor(settings.totalStepDown / stepDown).toInt()
+
+        rapid(x = clearance, z = approachGap)
+        rapid(x = retractX)
+        fun faceLayer(z: Double) {
+            feedAbsolute(x = entryX, z = z)
+            feedAbsolute(x = center) // feed into center
+            rapid(x = center + approachGap, z = z + approachGap)
+            rapid(x = retractX)
+        }
+
+        var z = 0.0
+        for (layer in 1..totalFullPasses) {
+            z -= stepDown
+            faceLayer(z)
+        }
+        // do another pass if we aren't all the way in yet
+        val finalZ = settings.totalStepDown
+        if (z > finalZ) faceLayer(finalZ)
+
+        rapid(x = clearance, z = approachGap)
+    }
+
+    private fun millFacing(turtle: Turtle) = with(turtle) {
         val xEntryClearance = settings.bitDiameter
         val xEntry = settings.stockWidth + xEntryClearance
         val bitRadius = settings.bitDiameter / 2
@@ -92,6 +129,8 @@ class SquareUpGenerator(var settings: SquareUpSettings) {
             // back to safe height
             rapid(z = settings.safetyHeight)
         }
+
+        safeHeight(settings.safetyHeight)
 
         var z = 0.0
         for (layer in 1..totalFullVerticalPasses) {

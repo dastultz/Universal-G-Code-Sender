@@ -94,6 +94,7 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
     private val stepOver = SpinnerNumberModel(1.0, 0.0, doubleSpinnerMax, 0.1)
     private val maxStepDown = SpinnerNumberModel(3.0, 0.0, doubleSpinnerMax, 0.1)
     private val totalStepDown = SpinnerNumberModel(10.0, 0.0, doubleSpinnerMax, 0.1)
+    private val crossCenter = SpinnerNumberModel(0.0, 0.0, doubleSpinnerMax, 0.1)
     private val cuttingFeedRate = SpinnerNumberModel(100.0, 1.0, doubleSpinnerMax, 1.0)
     private val safetyHeight = SpinnerNumberModel(5.0, 0.0, doubleSpinnerMax, 0.1)
     private val units = JComboBox(SwingHelpers.getUnitOptions())
@@ -102,7 +103,8 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
         stockWidth, stockDepth, stockHeight,
         stockDiameter, stockLength,
         safetyHeight, bitDiameter,
-        stepOver, maxStepDown, totalStepDown
+        stepOver, maxStepDown, totalStepDown,
+        crossCenter
     )
 
     private val coarseDimensionSpinners = listOf(
@@ -133,6 +135,7 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
             getDouble(this.stepOver),
             getDouble(this.maxStepDown),
             getDouble(this.totalStepDown),
+            getDouble(this.crossCenter),
             getDouble(this.cuttingFeedRate),
             getDouble(this.safetyHeight),
             selectedUnit(this.units.selectedIndex)
@@ -232,8 +235,9 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
                 total cut "total stepover"
         turning
             face turning
-                max cut "max stepover"
-                total cut "total stepover"
+                max cut "max stepdown"
+                total cut "total stepdown"
+                cross center
             profile turning
                 max cut "max stepover"
                 total cut "total stepover"
@@ -260,9 +264,6 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
             stockPanel.appendSpinner("stock-width", stockWidth)
             stockPanel.appendSpinner("stock-depth", stockDepth)
             stockPanel.appendSpinner("stock-height", stockHeight)
-            stockPanel.appendSpinner("stepover", stepOver)
-            stockPanel.appendSpinner("maxstepdown", maxStepDown)
-            stockPanel.appendSpinner("totalstepdown", totalStepDown)
         } else {
             stockPanel.appendSpinner("stock-diameter", stockDiameter)
             stockPanel.appendSpinner("stock-length", stockLength)
@@ -271,6 +272,13 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
         operationPanel.removeAll()
         if (isMilling) {
             operationPanel.appendSpinner("gcode.setting.endmill-diameter", bitDiameter)
+            operationPanel.appendSpinner("stepover", stepOver)
+            operationPanel.appendSpinner("maxstepdown", maxStepDown)
+            operationPanel.appendSpinner("totalstepdown", totalStepDown)
+        } else {
+            operationPanel.appendSpinner("maxstepdown", maxStepDown)
+            operationPanel.appendSpinner("totalstepdown", totalStepDown)
+            operationPanel.appendSpinner("crosscenter", crossCenter)
         }
         operationPanel.appendSpinner("gcode.setting.feed", cuttingFeedRate)
         operationPanel.appendSpinner("gcode.setting.safety-height", safetyHeight)
@@ -365,6 +373,7 @@ class SquareUpPanel(val topComponent: SquareUpTopComponent) {
                 this.bitDiameter.value = settings.bitDiameter
                 this.stepOver.value = settings.stepOver
                 this.maxStepDown.value = settings.maxStepDown
+                this.crossCenter.value = settings.crossCenter
                 this.totalStepDown.value = settings.totalStepDown
                 this.cuttingFeedRate.value = settings.feed
                 this.safetyHeight.value = settings.safetyHeight

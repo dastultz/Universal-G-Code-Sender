@@ -83,9 +83,20 @@ class SquareUpPreview(
         val convert = generator::unitConverter
         val settings = generator.settings
         val diameter = convert(settings.stockDiameter / 2.0)
-        val length = convert(settings.stockLength)
+        val remainingStockLength = convert(settings.stockLength - settings.totalStepDown)
+        val removedStockLength = convert(settings.totalStepDown)
 
-        glut.glutSolidCylinder(diameter, length, CYLINDER_SLICES, CYLINDER_STACKS)
+        val gl = drawable.gl.gL2
+        gl.glLineWidth(0.5f)
+        val color = Color(200, 200, 200, 200)
+        gl.glColor4fv(VisualizerOptions.colorToFloatArray(color), 0)
+
+        gl.glPushMatrix()
+        gl.glTranslated(0.0, 0.0, 0 - removedStockLength)
+        glut.glutWireCylinder(diameter, removedStockLength, CYLINDER_SLICES, CYLINDER_STACKS)
+        gl.glTranslated(0.0, 0.0, 0 - remainingStockLength)
+        glut.glutSolidCylinder(diameter, remainingStockLength, CYLINDER_SLICES, CYLINDER_STACKS)
+        gl.glPopMatrix()
     }
 
     private fun drawMillingPreview(drawable: GLAutoDrawable) {

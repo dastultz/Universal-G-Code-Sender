@@ -53,6 +53,10 @@ class Turtle(
         generator.rapid(x, y, z)
     }
 
+    fun feedAbsolute(x: Double? = null, y: Double? = null, z: Double? = null, feed: Double? = null) {
+        generator.feedAbsolute(x, y, z, feed)
+    }
+
     fun feed(distance: Double, feed: Double? = null) {
         when (heading) {
             Heading.RIGHT -> generator.feedRelative(x = distance, feed = feed)

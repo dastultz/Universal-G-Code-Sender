@@ -36,6 +36,7 @@ data class SquareUpSettings(
     val stepOver: Double,
     val maxStepDown: Double,
     val totalStepDown: Double,
+    val crossCenter: Double,
     val feed: Double,
     val safetyHeight: Double,
     val units: UnitUtils.Units
