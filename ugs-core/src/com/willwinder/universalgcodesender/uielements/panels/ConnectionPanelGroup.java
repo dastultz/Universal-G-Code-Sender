@@ -25,6 +25,7 @@ import com.willwinder.universalgcodesender.listeners.ControllerStatus;
 import com.willwinder.universalgcodesender.listeners.UGSEventListener;
 import com.willwinder.universalgcodesender.model.Alarm;
 import com.willwinder.universalgcodesender.model.BackendAPI;
+import com.willwinder.universalgcodesender.model.BaudRateEnum;
 import com.willwinder.universalgcodesender.model.Position;
 import com.willwinder.universalgcodesender.model.UGSEvent;
 import com.willwinder.universalgcodesender.services.JogService;
@@ -96,14 +97,14 @@ public class ConnectionPanelGroup extends JPanel implements UGSEventListener, Co
 
         portCombo.setEditable(true);
 
-        baudCombo.setModel(new javax.swing.DefaultComboBoxModel(new String[]{"2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400"}));
+        baudCombo.setModel(new DefaultComboBoxModel(BaudRateEnum.getAllBaudRates()));
         baudCombo.setSelectedIndex(2);
         baudCombo.setToolTipText("Select baudrate to use for the serial port.");
 
-        openCloseButton.addActionListener(evt -> opencloseButtonActionPerformed(evt));
+        openCloseButton.addActionListener(this::opencloseButtonActionPerformed);
         refreshButton.addActionListener(evt -> loadPortSelector());
-        sendPauseResumeButton.addActionListener(evt -> sendPauseResumeButtonActionPerformed(evt));
-        browseCancelButton.addActionListener(evt -> browseCancelButtonActionPerformed(evt));
+        sendPauseResumeButton.addActionListener(this::sendPauseResumeButtonActionPerformed);
+        browseCancelButton.addActionListener(this::browseCancelButtonActionPerformed);
 
         Font f = currentFile.getFont();
         currentFile.setFont(f.deriveFont(f.getStyle() | Font.BOLD));
@@ -221,11 +222,6 @@ public class ConnectionPanelGroup extends JPanel implements UGSEventListener, Co
 
     @Override
     public void statusStringListener(ControllerStatus status) {
-
-    }
-
-    @Override
-    public void postProcessData(int numRows) {
 
     }
 
@@ -373,75 +369,72 @@ public class ConnectionPanelGroup extends JPanel implements UGSEventListener, Co
 
     private void addKeyboardListener() {
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
-                .addKeyEventDispatcher(new KeyEventDispatcher() {
-                    @Override
-                    public boolean dispatchKeyEvent(KeyEvent e) {
-                        // Check context.
-                        if (((jogPanel.isKeyboardMovementEnabled()) &&
-                                e.getID() == KeyEvent.KEY_PRESSED)) {
-                            switch (e.getKeyCode()) {
-                                case KeyEvent.VK_RIGHT:
-                                case KeyEvent.VK_KP_RIGHT:
-                                case KeyEvent.VK_NUMPAD6:
-                                    jogPanel.xPlusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_LEFT:
-                                case KeyEvent.VK_KP_LEFT:
-                                case KeyEvent.VK_NUMPAD4:
-                                    jogPanel.xMinusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_UP:
-                                case KeyEvent.VK_KP_UP:
-                                case KeyEvent.VK_NUMPAD8:
-                                    jogPanel.yPlusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_DOWN:
-                                case KeyEvent.VK_KP_DOWN:
-                                case KeyEvent.VK_NUMPAD2:
-                                    jogPanel.yMinusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_PAGE_UP:
-                                case KeyEvent.VK_NUMPAD9:
-                                    jogPanel.zPlusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_PAGE_DOWN:
-                                case KeyEvent.VK_NUMPAD3:
-                                    jogPanel.zMinusButtonActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_ADD:
-                                    jogPanel.increaseStepActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_SUBTRACT:
-                                    jogPanel.decreaseStepActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_DIVIDE:
-                                    jogPanel.divideStepActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_MULTIPLY:
-                                    jogPanel.multiplyStepActionPerformed();
-                                    e.consume();
-                                    return true;
-                                case KeyEvent.VK_INSERT:
-                                case KeyEvent.VK_NUMPAD0:
-                                    //resetCoordinatesButtonActionPerformed(null);
-                                    e.consume();
-                                    return true;
-                                default:
-                                    break;
-                            }
+                .addKeyEventDispatcher(e -> {
+                    // Check context.
+                    if (((jogPanel.isKeyboardMovementEnabled()) &&
+                            e.getID() == KeyEvent.KEY_PRESSED)) {
+                        switch (e.getKeyCode()) {
+                            case KeyEvent.VK_RIGHT:
+                            case KeyEvent.VK_KP_RIGHT:
+                            case KeyEvent.VK_NUMPAD6:
+                                jogPanel.xPlusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_LEFT:
+                            case KeyEvent.VK_KP_LEFT:
+                            case KeyEvent.VK_NUMPAD4:
+                                jogPanel.xMinusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_UP:
+                            case KeyEvent.VK_KP_UP:
+                            case KeyEvent.VK_NUMPAD8:
+                                jogPanel.yPlusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_DOWN:
+                            case KeyEvent.VK_KP_DOWN:
+                            case KeyEvent.VK_NUMPAD2:
+                                jogPanel.yMinusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_PAGE_UP:
+                            case KeyEvent.VK_NUMPAD9:
+                                jogPanel.zPlusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_PAGE_DOWN:
+                            case KeyEvent.VK_NUMPAD3:
+                                jogPanel.zMinusButtonActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_ADD:
+                                jogPanel.increaseStepActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_SUBTRACT:
+                                jogPanel.decreaseStepActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_DIVIDE:
+                                jogPanel.divideStepActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_MULTIPLY:
+                                jogPanel.multiplyStepActionPerformed();
+                                e.consume();
+                                return true;
+                            case KeyEvent.VK_INSERT:
+                            case KeyEvent.VK_NUMPAD0:
+                                //resetCoordinatesButtonActionPerformed(null);
+                                e.consume();
+                                return true;
+                            default:
+                                break;
                         }
-
-                        return false;
                     }
+
+                    return false;
                 });
     }
 }

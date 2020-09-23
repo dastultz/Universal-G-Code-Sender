@@ -1,5 +1,5 @@
 /*
-    Copyright 2016-2017 Will Winder
+    Copyright 2016-2020 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -20,29 +20,26 @@ package com.willwinder.universalgcodesender.gcode;
 
 import com.google.common.collect.Iterables;
 import com.willwinder.universalgcodesender.gcode.GcodeParser.GcodeMeta;
-import com.willwinder.universalgcodesender.gcode.processors.ArcExpander;
-import com.willwinder.universalgcodesender.gcode.util.GcodeParserException;
-import com.willwinder.universalgcodesender.gcode.util.Plane;
-import com.willwinder.universalgcodesender.gcode.processors.CommandLengthProcessor;
-import com.willwinder.universalgcodesender.gcode.processors.CommentProcessor;
-import com.willwinder.universalgcodesender.gcode.processors.DecimalProcessor;
-import com.willwinder.universalgcodesender.gcode.processors.FeedOverrideProcessor;
-import com.willwinder.universalgcodesender.gcode.processors.LineSplitter;
-import com.willwinder.universalgcodesender.gcode.processors.M30Processor;
-import com.willwinder.universalgcodesender.gcode.processors.MeshLeveler;
-import com.willwinder.universalgcodesender.gcode.processors.WhitespaceProcessor;
+import com.willwinder.universalgcodesender.gcode.processors.*;
 import com.willwinder.universalgcodesender.gcode.util.Code;
-import static com.willwinder.universalgcodesender.gcode.util.Code.G0;
-import static com.willwinder.universalgcodesender.gcode.util.Code.G1;
-import static com.willwinder.universalgcodesender.gcode.util.Code.G3;
+import com.willwinder.universalgcodesender.gcode.util.GcodeParserException;
 import com.willwinder.universalgcodesender.gcode.util.GcodeParserUtils;
+import com.willwinder.universalgcodesender.gcode.util.Plane;
 import com.willwinder.universalgcodesender.i18n.Localization;
 import com.willwinder.universalgcodesender.model.Position;
 import com.willwinder.universalgcodesender.model.UnitUtils.Units;
-import static com.willwinder.universalgcodesender.model.UnitUtils.Units.MM;
 import com.willwinder.universalgcodesender.types.GcodeCommand;
 import com.willwinder.universalgcodesender.types.PointSegment;
 import com.willwinder.universalgcodesender.utils.GcodeStreamReader;
+import com.willwinder.universalgcodesender.utils.GcodeStreamWriter;
+import com.willwinder.universalgcodesender.utils.IGcodeStreamReader;
+import com.willwinder.universalgcodesender.utils.IGcodeWriter;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.assertj.core.api.Assertions;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -50,13 +47,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.assertj.core.api.Assertions;
-import static org.assertj.core.api.Assertions.*;
-import org.junit.Assert;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static com.willwinder.universalgcodesender.gcode.util.Code.*;
+import static com.willwinder.universalgcodesender.model.UnitUtils.Units.MM;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
 
 /**
  *
@@ -301,9 +297,11 @@ public class GcodeParserTest {
         File tempFile = File.createTempFile("temp", "file");
         IOUtils.copy(file.openStream(), FileUtils.openOutputStream(tempFile));
 
-        GcodeParserUtils.processAndExport(gcp, tempFile, output.toFile());
+        try (IGcodeWriter gcw = new GcodeStreamWriter(output.toFile())) {
+            GcodeParserUtils.processAndExport(gcp, tempFile, gcw);
+        }
 
-        GcodeStreamReader reader = new GcodeStreamReader(output.toFile());
+        IGcodeStreamReader reader = new GcodeStreamReader(output.toFile());
 
         file = this.getClass().getClassLoader().getResource("./gcode/circle_test.nc.processed");
         Files.lines(Paths.get(file.toURI())).forEach((t) -> {
@@ -317,7 +315,7 @@ public class GcodeParserTest {
                 Assert.fail("Unexpected exception.");
             }
         });
-        assertEquals(1027, reader.getNumRows());
+        assertEquals(1030, reader.getNumRows());
         output.toFile().delete();
     }
 
@@ -334,18 +332,14 @@ public class GcodeParserTest {
     }
 
     @Test
-    public void doubleParenCommentTest() throws Exception {
-        GcodeParser gcp = new GcodeParser();
-        gcp.addCommandProcessor(new CommentProcessor());
-
-
-
+    public void doubleParenCommentWithCommentProcessorTest() throws Exception {
         String command = "(comment (with subcomment) still in the comment) G01 X10";
         GcodeParser instance = new GcodeParser();
         instance.addCommandProcessor(new CommentProcessor());
         List<String> result = instance.preprocessCommand(command, instance.getCurrentState());
         assertEquals(1, result.size());
         assertEquals(" G01 X10", result.get(0));
+
     }
 
     @Test
@@ -407,6 +401,15 @@ public class GcodeParserTest {
     }
 
     @Test
+    public void processCommandWithBlockComment() throws Exception {
+        List<GcodeMeta> metaList = GcodeParser.processCommand("(hello world)G3", 0, new GcodeState());
+        assertThat(metaList.size()).isEqualTo(1);
+
+        metaList = GcodeParser.processCommand("(1)(2)G3(3)", 0, new GcodeState());
+        assertThat(metaList.size()).isEqualTo(1);
+    }
+
+    @Test
     public void spaceInAxisWord() throws Exception {
         List<GcodeMeta> metaList = GcodeParser.processCommand("G \t1 X-1Y  - 0.\t5Z\n1 .0", 0, new GcodeState());
         GcodeMeta meta = Iterables.getOnlyElement(metaList);
@@ -419,6 +422,13 @@ public class GcodeParserTest {
         List<GcodeMeta> metaList = GcodeParser.processCommand("F100", 0, new GcodeState(), true);
         GcodeMeta meta = Iterables.getOnlyElement(metaList);
         assertThat(meta.state.speed).isEqualTo(100.0);
+    }
+
+    @Test
+    public void fWordFromJogCommandShouldNotBeParsed() throws Exception {
+        List<GcodeMeta> metaList = GcodeParser.processCommand("$J=G21G91X10F99", 0, new GcodeState(), true);
+        GcodeMeta meta = Iterables.getOnlyElement(metaList);
+        assertThat(meta.state.speed).isEqualTo(0.0);
     }
 
     @Test

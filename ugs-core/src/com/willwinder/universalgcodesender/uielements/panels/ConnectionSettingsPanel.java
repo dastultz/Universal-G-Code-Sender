@@ -1,5 +1,5 @@
 /*
-    Copyright 2016-2017 Will Winder
+    Copyright 2016-2019 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -26,35 +26,42 @@ import com.willwinder.universalgcodesender.uielements.IChanged;
 import com.willwinder.universalgcodesender.uielements.helpers.AbstractUGSSettings;
 import com.willwinder.universalgcodesender.utils.Settings;
 import com.willwinder.universalgcodesender.utils.SettingsFactory;
+import com.willwinder.universalgcodesender.utils.SwingHelpers;
 import net.miginfocom.swing.MigLayout;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.io.File;
+import java.util.Optional;
 
 /**
- *
  * @author wwinder
  */
 public class ConnectionSettingsPanel extends AbstractUGSSettings {
     private final Checkbox verboseConsoleOutput = new Checkbox(
-                Localization.getString("mainWindow.swing.showVerboseOutputCheckBox"));
+            Localization.getString("mainWindow.swing.showVerboseOutputCheckBox"));
     private final Checkbox useZStepSize = new Checkbox(
-                Localization.getString("sender.step.separateZ"));
+            Localization.getString("sender.step.separateZ"));
     private final Checkbox singleStepMode = new Checkbox(
-                Localization.getString("sender.singlestep"));
+            Localization.getString("sender.singlestep"));
     private final Checkbox statusPollingEnabled = new Checkbox(
-                Localization.getString("sender.status"));
+            Localization.getString("sender.status"));
     private final Spinner statusPollRate = new Spinner(
-                Localization.getString("sender.status.rate"),
-                new SpinnerNumberModel(1, 1, null, 100));
-    private final Checkbox stateColorDisplayEnabled = new Checkbox(
-                Localization.getString("sender.state"));
+            Localization.getString("sender.status.rate"),
+            new SpinnerNumberModel(1, 1, null, 100));
+    private final Spinner safetyHeight = new Spinner(
+            Localization.getString("sender.safety-height"),
+            new SpinnerNumberModel(1, 1, null, 1));
     private final Checkbox showNightlyWarning = new Checkbox(
-                Localization.getString("sender.nightly-warning"));
+            Localization.getString("sender.nightly-warning"));
+    private final Checkbox autoStartPendant = new Checkbox(
+            Localization.getString("sender.autostartpendant"));
     private final JComboBox<Language> languageCombo = new JComboBox<>(AvailableLanguages.getAvailableLanguages().toArray(new Language[0]));
-    private final JComboBox<String> connectionDriver = new JComboBox<>(new String[]{
-            ConnectionDriver.JSSC.getPrettyName(),
-            ConnectionDriver.JSERIALCOMM.getPrettyName(),
-            ConnectionDriver.TCP.getPrettyName(),});
+    private final JComboBox<String> connectionDriver = new JComboBox<>(ConnectionDriver.getPrettyNames());
+    private final JTextField workspaceDirectory = new JTextField();
+    private final JButton workspaceDirectoryBrowseButton = new JButton("Browse");
+
 
     public ConnectionSettingsPanel(Settings settings, IChanged changer) {
         super(settings, changer);
@@ -79,24 +86,20 @@ public class ConnectionSettingsPanel extends AbstractUGSSettings {
         settings.setVerboseOutputEnabled(verboseConsoleOutput.getValue());
         settings.setUseZStepSize(useZStepSize.getValue());
         settings.setSingleStepMode(singleStepMode.getValue());
+        settings.setSafetyHeight((int) safetyHeight.getValue());
         settings.setStatusUpdatesEnabled(statusPollingEnabled.getValue());
-        settings.setStatusUpdateRate((int)statusPollRate.getValue());
-        settings.setDisplayStateColor(stateColorDisplayEnabled.getValue());
+        settings.setStatusUpdateRate((int) statusPollRate.getValue());
         //settings.setAutoConnectEnabled(autoConnect.getValue());
         settings.setShowNightlyWarning(showNightlyWarning.getValue());
-        settings.setLanguage(((Language)languageCombo.getSelectedItem()).getLanguageCode());
-        if (connectionDriver.getSelectedItem().equals(ConnectionDriver.JSERIALCOMM.getPrettyName())) {
-            settings.setConnectionDriver(ConnectionDriver.JSERIALCOMM);
-        } else if (connectionDriver.getSelectedItem().equals(ConnectionDriver.TCP.getPrettyName())) {
-            settings.setConnectionDriver(ConnectionDriver.TCP);
-        } else {
-            settings.setConnectionDriver(ConnectionDriver.JSSC);
-        }
+        settings.setAutoStartPendant(autoStartPendant.getValue());
+        settings.setLanguage(((Language) languageCombo.getSelectedItem()).getLanguageCode());
+        settings.setConnectionDriver(ConnectionDriver.prettyNameToEnum(connectionDriver.getSelectedItem().toString()));
+        settings.setWorkspaceDirectory(workspaceDirectory.getText());
         SettingsFactory.saveSettings(settings);
     }
 
     @Override
-    public void restoreDefaults() throws Exception {
+    public void restoreDefaults() {
         updateComponents(new Settings());
         save();
     }
@@ -122,11 +125,14 @@ public class ConnectionSettingsPanel extends AbstractUGSSettings {
         statusPollRate.setValue(s.getStatusUpdateRate());
         add(statusPollRate, "spanx, wrap");
 
-        stateColorDisplayEnabled.setSelected(s.isDisplayStateColor());
-        add(stateColorDisplayEnabled, "spanx, wrap");
+        safetyHeight.setValue((int) s.getSafetyHeight());
+        add(safetyHeight, "spanx, wrap");
 
         showNightlyWarning.setSelected(s.isShowNightlyWarning());
         add(showNightlyWarning, "spanx, wrap");
+
+        autoStartPendant.setSelected(s.isAutoStartPendant());
+        add(autoStartPendant, "spanx, wrap");
 
         for (int i = 0; i < languageCombo.getItemCount(); i++) {
             Language l = languageCombo.getItemAt(i);
@@ -142,5 +148,30 @@ public class ConnectionSettingsPanel extends AbstractUGSSettings {
 
         add(new JLabel(Localization.getString("settings.connectionDriver")), "gapleft 56");
         add(connectionDriver, "grow, wrap");
+
+        workspaceDirectory.setText(settings.getWorkspaceDirectory());
+        JPanel panel = new JPanel();
+        panel.setLayout(new MigLayout("insets 0", "fill"));
+        panel.add(workspaceDirectory, "gapright 0");
+        panel.add(workspaceDirectoryBrowseButton);
+        workspaceDirectoryBrowseButton.setAction(createBrowseDirectoryAction());
+
+        add(new JLabel(Localization.getString("settings.workspaceDirectory")), "gapleft 56");
+        add(panel, "grow, wrap");
+    }
+
+    private AbstractAction createBrowseDirectoryAction() {
+        return new AbstractAction("Browse") {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                File directory = new File(".");
+                if (StringUtils.isNotEmpty(workspaceDirectory.getText())) {
+                    directory = new File(workspaceDirectory.getText());
+                }
+
+                Optional<File> optionalFile = SwingHelpers.openDirectory(Localization.getString("settings.workspaceDirectory"), directory);
+                optionalFile.ifPresent(file -> workspaceDirectory.setText(file.getPath()));
+            }
+        };
     }
 }

@@ -1,5 +1,5 @@
 /*
-    Copyright 2018 Will Winder
+    Copyright 2018-2020 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -272,6 +272,7 @@ public class WizardPanelSoftLimits extends AbstractWizardPanel implements UGSEve
     private void refeshControls() {
         ThreadHelper.invokeLater(() -> {
             try {
+                checkboxEnableSoftLimits.setVisible(false);
                 if (getBackend().getController() != null &&
                         getBackend().getController().getFirmwareSettings().isHardLimitsEnabled() &&
                         getBackend().getController().getFirmwareSettings().isHomingEnabled() &&
@@ -340,7 +341,7 @@ public class WizardPanelSoftLimits extends AbstractWizardPanel implements UGSEve
                 labelPositionY.setText(positionDecimalFormat.format(machineCoord.get(Axis.Y)) + " mm");
                 labelPositionZ.setText(positionDecimalFormat.format(machineCoord.get(Axis.Z)) + " mm");
             }
-        } else if (event.getEventType() == UGSEvent.EventType.FIRMWARE_SETTING_EVENT) {
+        } else if (event.isFirmwareSettingEvent()) {
             refeshControls();
         }
 

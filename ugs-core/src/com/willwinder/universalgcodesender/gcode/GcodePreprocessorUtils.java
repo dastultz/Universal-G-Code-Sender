@@ -1,5 +1,5 @@
 /*
-    Copyright 2013-2018 Will Winder
+    Copyright 2013-2020 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -19,21 +19,19 @@
 package com.willwinder.universalgcodesender.gcode;
 
 import com.willwinder.universalgcodesender.gcode.util.Code;
-import static com.willwinder.universalgcodesender.gcode.util.Code.*;
-import static com.willwinder.universalgcodesender.gcode.util.Code.ModalGroup.Motion;
+import com.willwinder.universalgcodesender.gcode.util.GcodeParserException;
 import com.willwinder.universalgcodesender.gcode.util.PlaneFormatter;
 import com.willwinder.universalgcodesender.i18n.Localization;
 import com.willwinder.universalgcodesender.model.Position;
+
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static com.willwinder.universalgcodesender.gcode.util.Code.*;
+import static com.willwinder.universalgcodesender.gcode.util.Code.ModalGroup.Motion;
 
 /**
  * Collection of useful command preprocessor methods.
@@ -42,10 +40,9 @@ import java.util.stream.Collectors;
  */
 public class GcodePreprocessorUtils {
 
+    public static final Pattern COMMENT = Pattern.compile("\\(.*\\)|\\s*;.*|%.*$");
     private static final String EMPTY = "";
-    public static final Pattern COMMENT = Pattern.compile("\\(.*\\)|\\s*;.*|%$");
-    private static final Pattern COMMENTPARSE = Pattern.compile("(?<=\\()[^\\(\\)]*|(?<=\\;).*|%");
-    private static final Pattern GCODE_PATTERN = Pattern.compile("[Gg]0*(\\d+)");
+    private static final Pattern COMMENTPARSE = Pattern.compile("(?<=\\()[^()]*|(?<=;).*|%");
 
     private static int decimalLength = -1;
     private static Pattern decimalPattern;
@@ -63,12 +60,12 @@ public class GcodePreprocessorUtils {
         // Check if command sets feed speed.
         Pattern pattern = Pattern.compile("F([0-9.]+)", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(command);
-        if (matcher.find()){
-            Double originalFeedRate = Double.parseDouble(matcher.group(1));
+        if (matcher.find()) {
+            double originalFeedRate = Double.parseDouble(matcher.group(1));
             //System.out.println( "Found feed     " + originalFeedRate.toString() );
-            Double newFeedRate      = originalFeedRate * speed / 100.0;
+            double newFeedRate = originalFeedRate * speed / 100.0;
             //System.out.println( "Change to feed " + newFeedRate.toString() );
-            returnString = matcher.replaceAll( "F" + newFeedRate.toString() );
+            returnString = matcher.replaceAll("F" + newFeedRate);
         }
 
         return returnString;
@@ -107,7 +104,7 @@ public class GcodePreprocessorUtils {
         Matcher matcher = decimalPattern.matcher(command);
 
         // Build up the truncated command.
-        Double d;
+        double d;
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
             d = Double.parseDouble(matcher.group());
@@ -154,32 +151,8 @@ public class GcodePreprocessorUtils {
                 l.add(s.substring(1));
             }
         }
-        
+
         return l;
-    }
-    
-
-    static public List<Integer> parseGCodes(String command) {
-        Matcher matcher = GCODE_PATTERN.matcher(command);
-        List<Integer> codes = new ArrayList<>();
-        
-        while (matcher.find()) {
-            codes.add(Integer.parseInt(matcher.group(1)));
-        }
-        
-        return codes;
-    }
-
-    static private Pattern mPattern = Pattern.compile("[Mm]0*(\\d+)");
-    static public List<Integer> parseMCodes(String command) {
-        Matcher matcher = GCODE_PATTERN.matcher(command);
-        List<Integer> codes = new ArrayList<>();
-        
-        while (matcher.find()) {
-            codes.add(Integer.parseInt(matcher.group(1)));
-        }
-        
-        return codes;
     }
 
     /**
@@ -187,11 +160,11 @@ public class GcodePreprocessorUtils {
      */
     static public Position updatePointWithCommand(List<String> commandArgs, Position initial, boolean absoluteMode) {
 
-        Double x = parseCoord(commandArgs, 'X');
-        Double y = parseCoord(commandArgs, 'Y');
-        Double z = parseCoord(commandArgs, 'Z');
+        double x = parseCoord(commandArgs, 'X');
+        double y = parseCoord(commandArgs, 'Y');
+        double z = parseCoord(commandArgs, 'Z');
 
-        if (x.isNaN() && y.isNaN() && z.isNaN()) {
+        if (Double.isNaN(x) && Double.isNaN(y) && Double.isNaN(z)) {
             return null;
         }
 
@@ -255,7 +228,7 @@ public class GcodePreprocessorUtils {
     static public String generateLineFromPoints(final Code command, final Position start, final Position end, final boolean absoluteMode, DecimalFormat formatter) {
         DecimalFormat df = formatter;
         if (df == null) {
-            df = new DecimalFormat("#.####");
+            df = new DecimalFormat("0.####", Localization.dfs);
         }
         
         StringBuilder sb = new StringBuilder();
@@ -305,15 +278,46 @@ public class GcodePreprocessorUtils {
 
         List<String> l = new ArrayList<>();
         boolean readNumeric = false;
+        boolean readLineComment = false;
+        boolean readBlockComment = false;
         StringBuilder sb = new StringBuilder();
         
         for (int i = 0; i < command.length(); i++){
             char c = command.charAt(i);
-            if (Character.isWhitespace(c)) continue;
-                        
+
+            if (c == '(' && !readLineComment && !readBlockComment) {
+                if( sb.length() > 0 ){
+                    l.add(sb.toString());
+                    sb = new StringBuilder();
+                }
+                sb.append(c);
+                readBlockComment = true;
+                continue;
+            } else if (readBlockComment && c == ')') {
+                readBlockComment = false;
+                sb.append(c);
+                l.add(sb.toString());
+                sb = new StringBuilder();
+                continue;
+            } else if (c == ';' && !readLineComment && !readBlockComment) {
+                if( sb.length() > 0 ){
+                    l.add(sb.toString());
+                    sb = new StringBuilder();
+                }
+                sb.append(c);
+                readLineComment = true;
+                continue;
+            }
+
+
+            if (readLineComment || readBlockComment) {
+                sb.append(c);
+            } else if (Character.isWhitespace(c)) {
+                continue;
+            }
             // If the last character was numeric (readNumeric is true) and this
             // character is a letter or whitespace, then we hit a boundary.
-            if (readNumeric && !Character.isDigit(c) && c != '.') {
+            else if (readNumeric && !Character.isDigit(c) && c != '.') {
                 readNumeric = false; // reset flag.
                 
                 l.add(sb.toString());
@@ -455,7 +459,8 @@ public class GcodePreprocessorUtils {
             radius = Math.sqrt(Math.pow(plane.axis0(p1) - plane.axis1(center), 2.0) + Math.pow(plane.axis1(p1) - plane.axis1(center), 2.0));
         }
 
-        double zIncrement = (plane.linear(p2) - plane.linear(p1)) / numPoints;
+        double linearIncrement = (plane.linear(p2) - plane.linear(p1)) / numPoints;
+        double linearPos = plane.linear(lineStart);
         for(int i=0; i<numPoints; i++)
         {
             if (isCw) {
@@ -473,8 +478,9 @@ public class GcodePreprocessorUtils {
             //lineStart.y = Math.sin(angle) * radius + center.y;
             plane.setAxis1(lineStart, Math.sin(angle) * radius + plane.axis1(center));
             //lineStart.z += zIncrement;
-            plane.setLinear(lineStart, plane.linear(lineStart) + zIncrement);
-            
+            plane.setLinear(lineStart, linearPos);
+            linearPos += linearIncrement;
+
             segments.add(new Position(lineStart));
         }
         
@@ -485,6 +491,7 @@ public class GcodePreprocessorUtils {
 
     /**
      * Helper method for to convert IJK syntax to center point.
+     *
      * @return the center of rotation between two points with IJK codes.
      */
     static private Position convertRToCenter(
@@ -494,14 +501,13 @@ public class GcodePreprocessorUtils {
             boolean absoluteIJK,
             boolean clockwise,
             PlaneFormatter plane) {
-        double R = radius;
         Position center = new Position();
         
         // This math is copied from GRBL in gcode.c
         double x = plane.axis0(end) - plane.axis0(start);
         double y = plane.axis1(end) - plane.axis1(start);
 
-        double h_x2_div_d = 4 * R*R - x*x - y*y;
+        double h_x2_div_d = 4 * radius * radius - x * x - y * y;
         //if (h_x2_div_d < 0) { System.out.println("Error computing arc radius."); }
         h_x2_div_d = (-Math.sqrt(h_x2_div_d)) / Math.hypot(x, y);
 
@@ -511,10 +517,8 @@ public class GcodePreprocessorUtils {
 
         // Special message from gcoder to software for which radius
         // should be used.
-        if (R < 0) {
+        if (radius < 0) {
             h_x2_div_d = -h_x2_div_d;
-            // TODO: Places that use this need to run ABS on radius.
-            radius = -radius;
         }
 
         double offsetX = 0.5*(x-(y*h_x2_div_d));
@@ -531,8 +535,9 @@ public class GcodePreprocessorUtils {
         return center;
     }
 
-    /** 
+    /**
      * Helper method for arc calculation
+     *
      * @return angle in radians of a line going from start to end.
      */
     static private double getAngle(final Position start, final Position end, PlaneFormatter plane) {
@@ -596,10 +601,18 @@ public class GcodePreprocessorUtils {
         return sweep;
     }
 
+    static public Set<Code> getMCodes(List<String> args) {
+        return getCodes(args, 'M');
+    }
+
     static public Set<Code> getGCodes(List<String> args) {
-        List<String> gCodeStrings = parseCodes(args, 'G');
+        return getCodes(args, 'G');
+    }
+
+    static public Set<Code> getCodes(List<String> args, Character letter) {
+        List<String> gCodeStrings = parseCodes(args, letter);
         return gCodeStrings.stream()
-                .map(c -> 'G' + c)
+                .map(c -> letter + c)
                 .map(Code::lookupCode)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -622,6 +635,8 @@ public class GcodePreprocessorUtils {
 
     /**
      * Return extracted motion words and remainder words.
+     *
+     * If the code is implicit, like the command "X0Y0", we'll still extract "X0Y0".
      * If the code is G0 or G1 and G53 is found, it will also be extracted:
      * http://linuxcnc.org/docs/html/gcode/g-code.html#gcode:g53
      */
@@ -651,5 +666,62 @@ public class GcodePreprocessorUtils {
         sc.remainder = remainder.toString();
 
         return sc;
+    }
+
+    /**
+     * Normalize a command by adding in implicit state.
+     *
+     * For example given the following program:
+     *     G20
+     *     G0 X10 F25
+     *     Y10
+     *
+     * The third command would be normalized to:
+     *     G0 Y10 F25
+     *
+     * @param command a command string to normalize.
+     * @param state the machine state before the command.
+     * @return normalized command.
+     */
+    public static String normalizeCommand(String command, GcodeState state) throws GcodeParserException {
+        List<String> args = GcodePreprocessorUtils.splitCommand(command);
+        Set<Code> gCodes = getGCodes(args);
+
+        Code code = null;
+        for (Code c : gCodes) {
+            if (c.getType() == Motion) {
+                code = c;
+            }
+        }
+
+        // Fallback to current motion mode if the motion cannot be detected from command.
+        if (code == null) {
+            code = state.currentMotionMode;
+        }
+
+        SplitCommand split = extractMotion(code, command);
+
+        // This could happen if the currentMotionMode is wrong.
+        if (split == null) {
+            throw new GcodeParserException("Invalid state attached to command, please notify the developers.");
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        // Don't add the state
+        //result.append(state.toGcode());
+
+        result.append("F" + state.speed);
+        result.append("S" + state.spindleSpeed);
+
+        // Check if we need to add the motion command back in.
+        if (!gCodes.contains(code)) {
+            result.append(state.currentMotionMode.toString());
+        }
+
+        // Add the motion command
+        result.append(split.extracted);
+
+        return result.toString();
     }
 }

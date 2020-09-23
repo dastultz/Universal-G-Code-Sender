@@ -18,41 +18,34 @@
  */
 package com.willwinder.ugs.nbm.visualizer;
 
-import com.willwinder.ugs.nbm.visualizer.actions.JogToHereAction;
-import com.willwinder.ugs.nbm.visualizer.actions.MoveCameraAction;
-import com.willwinder.ugs.nbm.visualizer.shared.GcodeRenderer;
+import com.willwinder.ugs.nbm.visualizer.actions.CameraResetPreset;
+import com.willwinder.ugs.nbm.visualizer.actions.CameraXPreset;
+import com.willwinder.ugs.nbm.visualizer.actions.CameraYPreset;
+import com.willwinder.ugs.nbm.visualizer.actions.CameraZPreset;
 import com.willwinder.ugs.nbm.visualizer.shared.IRenderableRegistrationService;
 import com.willwinder.ugs.nbm.visualizer.shared.Renderable;
 import com.willwinder.ugs.nbm.visualizer.shared.RenderableCheckBox;
 import com.willwinder.universalgcodesender.i18n.Localization;
 import com.willwinder.universalgcodesender.model.BackendAPI;
+import com.willwinder.universalgcodesender.model.Position;
 import org.openide.util.Lookup;
 
 import javax.swing.*;
 import java.awt.*;
-import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  * @author wwinder
  */
 public class VisualizerPopupMenu extends JPopupMenu {
-    private final JogToHereAction jogToHereAction;
-    private final JMenuItem jogToHere = new JMenuItem();
-    private final DecimalFormat decimalFormatter =
-            new DecimalFormat("#.#####", Localization.dfs);
+    private final BackendAPI backend;
+    private final Position position;
 
-    private final GcodeRenderer gcodeRenderer;
-
-    public VisualizerPopupMenu(BackendAPI backend, GcodeRenderer gcodeRenderer) {
-        jogToHereAction = new JogToHereAction(backend);
-
-        jogToHere.setText(String.format(Localization.getString("platform.visualizer.jogToHere"), 0, 0));
-
-        jogToHere.setAction(jogToHereAction);
-
-        this.gcodeRenderer = gcodeRenderer;
+    public VisualizerPopupMenu(BackendAPI backend, Position clickedWorkPosition) {
+        this.backend = backend;
+        this.position = clickedWorkPosition;
     }
 
     @Override
@@ -62,9 +55,20 @@ public class VisualizerPopupMenu extends JPopupMenu {
         createViewPresetSubmenu();
         createShowRenderablesSubmenu();
 
-        add(jogToHere);
+        CoordinatesSubMenu coordSubMenu = new CoordinatesSubMenu(backend, position);
+        add(coordSubMenu);
+
+        addActions();
 
         super.show(invoker, x, y);
+    }
+
+    private void addActions() {
+        List<Action> actionList = VisualizerPopupActionsManager.getActionList();
+        if (!actionList.isEmpty()) {
+            addSeparator();
+            actionList.forEach(action -> add(new JMenuItem(action)));
+        }
     }
 
     private void createShowRenderablesSubmenu() {
@@ -85,30 +89,20 @@ public class VisualizerPopupMenu extends JPopupMenu {
         JMenu menu = new JMenu(Localization.getString("platform.visualizer.popup.viewPresets"));
         add(menu);
 
-        JMenuItem menuItem = new JMenuItem(new MoveCameraAction(gcodeRenderer, MoveCameraAction.ROTATION_ISOMETRIC));
+        JMenuItem menuItem = new JMenuItem(new CameraResetPreset());
         menuItem.setText(Localization.getString("platform.visualizer.popup.presets.reset"));
         menu.add(menuItem);
 
-        menuItem = new JMenuItem(new MoveCameraAction(gcodeRenderer, MoveCameraAction.ROTATION_TOP));
+        menuItem = new JMenuItem(new CameraZPreset());
         menuItem.setText(Localization.getString("platform.visualizer.popup.presets.top"));
         menu.add(menuItem);
 
-        menuItem = new JMenuItem(new MoveCameraAction(gcodeRenderer, MoveCameraAction.ROTATION_LEFT));
+        menuItem = new JMenuItem(new CameraXPreset());
         menuItem.setText(Localization.getString("platform.visualizer.popup.presets.left"));
         menu.add(menuItem);
 
-        menuItem = new JMenuItem(new MoveCameraAction(gcodeRenderer, MoveCameraAction.ROTATION_FRONT));
+        menuItem = new JMenuItem(new CameraYPreset());
         menuItem.setText(Localization.getString("platform.visualizer.popup.presets.front"));
         menu.add(menuItem);
-    }
-
-    public void setJogLocation(double x, double y) {
-        String strX = decimalFormatter.format(x);
-        String strY = decimalFormatter.format(y);
-
-        jogToHereAction.setJogLocation(strX, strY);
-        String jogToHereString = Localization.getString("platform.visualizer.popup.jogToHere");
-        jogToHereString = jogToHereString.replaceAll("%f", "%s");
-        jogToHere.setText(String.format(jogToHereString, strX, strY));
     }
 }

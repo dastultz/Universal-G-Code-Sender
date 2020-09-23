@@ -1,6 +1,6 @@
 ![Universal G-Code Sender](https://raw.githubusercontent.com/winder/Universal-G-Code-Sender/master/ugs-platform/branding/src/main/nbm-branding/core/core.jar/org/netbeans/core/startup/splash.gif "UGS Splash Image")
 
-Universal G-Code Sender is a Java based, cross platform G-Code sender, compatible with [GRBL](https://github.com/gnea/grbl/) and [TinyG](https://github.com/synthetos/TinyG)/[g2core](https://github.com/synthetos/g2). Use this program to run a GRBL or TinyG/g2core controlled CNC machine. 
+Universal G-Code Sender is a Java based, cross platform G-Code sender, compatible with [GRBL](https://github.com/gnea/grbl/), [TinyG](https://github.com/synthetos/TinyG), [g2core](https://github.com/synthetos/g2) and [Smoothieware](http://smoothieware.org/).
 
 Online documentation and releases: http://winder.github.io/ugs_website/<br/>
 Discussion forum: https://groups.google.com/forum/#!forum/universal-gcode-sender
@@ -22,20 +22,23 @@ For stable releases visit the [downloads page](http://winder.github.io/ugs_websi
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/2941c34531f749a2b7fbcd1737f71000)](https://www.codacy.com/app/winder/Universal-G-Code-Sender?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=winder/Universal-G-Code-Sender&amp;utm_campaign=Badge_Grade)
 [![Codebeat badge](https://codebeat.co/badges/48cc1265-2f6b-4163-8a8a-964acc073100)](https://codebeat.co/projects/github-com-winder-universal-g-code-sender-master)
 
-| Version | Description |
-|-|-|
-| [UGS Classic](http://bit.ly/2ErycR3)  | The nightly build of the classic version with a clean and lightweight user interface |
-| [UGS Platform](http://bit.ly/2R5zw2F) | The nightly build of the next generation, feature packed version based on the Netbeans Platform |
+**UGS Platform**<br>
+The nightly build of the next generation, feature packed version based on the Netbeans Platform.
 
-## Running 
+Unpack and start the program ```bin/ugsplatform```
 
-Make sure you have [Java 8](https://java.com/en/download/manual.jsp) or later installed. 
+[![Windows](pictures/os_windows.png) Windows](https://ugs.jfrog.io/ugs/UGS/nightly/ugs-platform-app-2.0-SNAPSHOT-win.zip) <br>
+[![Mac OSX](pictures/os_mac.png) Mac OSX](https://ugs.jfrog.io/ugs/UGS/nightly/ugs-platform-app-2.0-SNAPSHOT.dmg) <br>
+[![Linux x64](pictures/os_linux.png) Linux](https://ugs.jfrog.io/ugs/UGS/nightly/ugs-platform-app-2.0-SNAPSHOT-linux.tar.gz) <br>
+[![Linux ARM](pictures/os_linux_arm.png) RaspberryPI](https://ugs.jfrog.io/ugs/UGS/nightly/ugs-platform-app-2.0-SNAPSHOT-pi.tar.gz) <br>
+[![Zip](pictures/zip.png) All platforms](http://bit.ly/2L2v9k6) (requires [Java](https://java.com/en/download/manual.jsp))<br>
 
-Download either **UGS Classic** or **UGS Platform** and unzip the .zip file.
+**UGS Classic**<br>
+The nightly build of the classic version with a clean and lightweight user interface.
 
-* For **UGS Classic** simply double click the jar file. On some platforms you may need to run the included start script.
-* For **UGS Platform** run the start script: ```bin/ugsplatform``` 
+Unpack and start the program by double clicking the jar file. On some platforms you may need to run the included start script. <br>
 
+[![Zip](pictures/zip.png) All platforms](http://bit.ly/2HhJIir) (requires [Java](https://java.com/en/download/manual.jsp))
 
 ## Screenshots
 
@@ -60,6 +63,10 @@ Menu with plugins
 One of many plugins
 
 ![Dowel Maker](https://github.com/winder/Universal-G-Code-Sender/raw/master/pictures/2.0_platform_dowel_maker_plugin.png "Dowel maker plugin")
+
+Basic gcode editor
+
+![Basic gcode editor](https://github.com/winder/Universal-G-Code-Sender/raw/master/pictures/2.0_platform_editor.png "Basic gcode editor")
 
 ### UGS Classic
 
@@ -111,6 +118,21 @@ mvn package -pl ugs-core
 mvn package assembly:assembly
 ```
 
+#### Develop via Intellij
+
+If you are more used to Intellij, you can also build, run and debug it there:
+
+- Run  `mvn nbm:run-platform -pl ugs-platform/application` once via terminal to build everything
+- Import the Source, `File` -> `New` -> `Project from existing Sources`
+- Setup a new "Run Configuration", `Java Application`, with following settings:
+  - Main Class: `org.netbeans.Main`
+  - VM Options: `-Dnetbeans.user=$ProjectFileDir$/ugs-platform/application/target/userdir -Dnetbeans.home=$ProjectFileDir$/ugs-platform/application/target/ugsplatform/platform -Dnetbeans.logger.console=true -Dnetbeans.indexing.noFileRefresh=true -Dnetbeans.dirs="$ProjectFileDir$/ugs-platform/application/target/ugsplatform/ugsplatform:$ProjectFileDir$/ugs-platform/application/target/ugsplatform/platform:$ProjectFileDir$/ugs-platform/application/target/ugsplatform/ide:$ProjectFileDir$/ugs-platform/application/target/ugsplatform/extra:$ProjectFileDir$/ugs-platform/application/target/ugsplatform/java"`
+  - Program arguments: `--branding ugsplatform`
+  - Working dir: `$ProjectFileDir$`
+  - Use classpath of module: `ugs-platform-app` 
+- There is a [runConfiguration](.idea/runConfigurations/UGS_Platform.xml) in the repository, which should be available after importing the project
+
+
 ## Changelog
 
 1.0.9 -> 2.0
@@ -124,6 +146,8 @@ mvn package assembly:assembly
 * Plane selection support: G17, G18, G19
 * Setup wizard for CNC controllers
 * Improved support for TinyG / g2core
+* Improved web pendant
+* Added command line support
 
 1.0.8 -> 1.0.9
 * Many performance improvements.

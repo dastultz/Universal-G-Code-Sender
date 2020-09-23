@@ -23,11 +23,10 @@ import com.willwinder.ugs.nbp.lib.services.LocalizingService;
 import com.willwinder.universalgcodesender.i18n.Localization;
 import com.willwinder.universalgcodesender.listeners.UGSEventListener;
 import com.willwinder.universalgcodesender.model.BackendAPI;
+import com.willwinder.universalgcodesender.model.BaudRateEnum;
 import com.willwinder.universalgcodesender.model.UGSEvent;
 import java.awt.Component;
 import java.awt.FlowLayout;
-import static javax.swing.Action.NAME;
-import static javax.swing.Action.SMALL_ICON;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -56,11 +55,11 @@ import org.openide.util.actions.CallableSystemAction;
                 position = 995)
 })
 public class BaudRateAction extends CallableSystemAction implements UGSEventListener {
-    public static final String ICON_BASE = "resources/icons/baudrate.png";
+    public static final String ICON_BASE = "resources/icons/baudrate.svg";
 
     private final BackendAPI backend;
-    private final Component c;
-    private final JComboBox<String> baudCombo = new JComboBox<>();
+    private Component c;
+    private JComboBox<String> baudCombo;
 
     public BaudRateAction(){
         this.backend = CentralLookup.getDefault().lookup(BackendAPI.class);
@@ -68,22 +67,6 @@ public class BaudRateAction extends CallableSystemAction implements UGSEventList
 
         putValue(SMALL_ICON, ImageUtilities.loadImageIcon(ICON_BASE, false));
         putValue(NAME, LocalizingService.ConnectionBaudRateToolbarTitle);
-
-
-        // Baud rate options.
-        baudCombo.setEditable(true);
-        baudCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[]{"2400", "4800", "9600", "19200", "38400", "57600", "115200", "230400"}));
-        baudCombo.setSelectedIndex(6);
-        baudCombo.setToolTipText("Select baudrate to use for the serial port.");
-
-        baudCombo.addActionListener(e ->this.performAction());
-
-        JPanel panel = new JPanel(new FlowLayout());
-        panel.add(new JLabel(Localization.getString("mainWindow.swing.baudLabel")));
-        panel.add(baudCombo);
-        c = panel;
-
-        updateBaudRate();
     }
 
     private void updateBaudRate() {
@@ -107,6 +90,10 @@ public class BaudRateAction extends CallableSystemAction implements UGSEventList
 
     @Override
     public void UGSEvent(UGSEvent evt) {
+        if (c == null) {
+            return;
+        }
+
         // If a setting has changed elsewhere, update the combo boxes.
         if (evt.isSettingChangeEvent()) {
             updateBaudRate();
@@ -120,6 +107,24 @@ public class BaudRateAction extends CallableSystemAction implements UGSEventList
     
     @Override
     public Component getToolbarPresenter() {
+        if (c == null) {
+            // Baud rate options.
+            baudCombo = new JComboBox<>();
+            baudCombo.setEditable(true);
+            baudCombo.setModel(new javax.swing.DefaultComboBoxModel<>(BaudRateEnum.getAllBaudRates()));
+            baudCombo.setSelectedIndex(6);
+            baudCombo.setToolTipText("Select baudrate to use for the serial port.");
+
+            baudCombo.addActionListener(e ->this.performAction());
+
+            JPanel panel = new JPanel(new FlowLayout());
+            panel.add(new JLabel(Localization.getString("mainWindow.swing.baudLabel")));
+            panel.add(baudCombo);
+            c = panel;
+
+            updateBaudRate();
+        }
+
         return c;
     }
 }

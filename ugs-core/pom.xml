@@ -28,6 +28,16 @@
 
   <dependencies>
     <dependency>
+      <groupId>javax.websocket</groupId>
+      <artifactId>javax.websocket-client-api</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.tyrus.bundles</groupId>
+      <artifactId>tyrus-standalone-client</artifactId>
+      <version>1.16</version>
+    </dependency>
+    <dependency>
       <groupId>org.jogamp.gluegen</groupId>
       <artifactId>gluegen-rt-main</artifactId>
       <version>${gluegen.version}</version>
@@ -51,11 +61,6 @@
       <groupId>org.swinglabs</groupId>
       <artifactId>swing-layout</artifactId>
       <version>${swing-layout.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -142,22 +147,13 @@
 
 
     <resources>
-      <!-- PendantUI -->
       <resource>
         <directory>src</directory>
         <includes>
           <include>resources/**</include>
         </includes>
       </resource>
-      <!--
-      <resource>
-        <targetPath>${project.build.outputDirectory}/com/willwinder/universalgcodesender/il8n</targetPath>
-        <directory>src/com/willwinder/universalgcodesender/il8n</directory>
-        <includes>
-          <include>MessagesBundle.*</include>
-        </includes>
-      </resource>
-      -->
+
       <resource>
         <directory>src</directory>
         <filtering>true</filtering>
@@ -169,83 +165,11 @@
 
     <plugins>
 
-      <plugin>
-        <groupId>org.mortbay.jetty</groupId>
-        <artifactId>jetty-maven-plugin</artifactId>
-        <version>${jetty.version}</version>
-        <configuration>
-          <stopKey>t8qtoU5R8ny6nYqv</stopKey>
-          <stopPort>9393</stopPort>
-          <scanIntervalSeconds>0</scanIntervalSeconds>
-          <useTestClasspath>true</useTestClasspath>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.5</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>com.willwinder.universalgcodesender.MainWindow</mainClass>
-              <addDefaultImplementationEntries/>
-            </manifest>
-          </archive>
-        </configuration>
-      </plugin>
-
-      <!-- Configure the fat-jar -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <finalName>UniversalGcodeSender</finalName>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer"/>
-              </transformers>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Generate the zip file. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.5.3</version>
-        <configuration>
-          <finalName>UniversalGcodeSender</finalName>
-          <appendAssemblyId>false</appendAssemblyId>
-          <descriptors>
-            <descriptor>src/assembly/assembly.xml</descriptor>
-          </descriptors>
-        </configuration>
-      </plugin>
-
       <!-- Code coverage -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.7.5.201505241946</version>
+        <version>${jacoco.version}</version>
         <executions>
           <execution>
             <goals>
@@ -267,7 +191,7 @@
         <artifactId>download-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>error_codes_en_US</id>
+            <id>Download GRBL error_codes_en_US</id>
             <phase>generate-sources</phase>
             <goals>
               <goal>wget</goal>
@@ -278,7 +202,7 @@
             </configuration>
           </execution>
           <execution>
-            <id>alarm_codes_en_US</id>
+            <id>Download GRBL alarm_codes_en_US</id>
             <phase>generate-sources</phase>
             <goals>
               <goal>wget</goal>
@@ -289,7 +213,7 @@
             </configuration>
           </execution>
           <execution>
-            <id>setting_codes_en_US</id>
+            <id>Download GRBL setting_codes_en_US</id>
             <phase>generate-sources</phase>
             <goals>
               <goal>wget</goal>

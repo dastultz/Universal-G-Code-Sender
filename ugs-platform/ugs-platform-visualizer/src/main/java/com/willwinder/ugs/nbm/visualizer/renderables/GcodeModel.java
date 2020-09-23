@@ -1,5 +1,5 @@
 /*
-    Copyright 2016-2017 Will Winder
+    Copyright 2016-2020 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -28,6 +28,7 @@ import com.willwinder.universalgcodesender.gcode.util.GcodeParserException;
 import com.willwinder.universalgcodesender.i18n.Localization;
 import com.willwinder.universalgcodesender.utils.GUIHelpers;
 import com.willwinder.universalgcodesender.utils.GcodeStreamReader;
+import com.willwinder.universalgcodesender.utils.IGcodeStreamReader;
 import com.willwinder.universalgcodesender.visualizer.GcodeViewParse;
 import com.willwinder.universalgcodesender.visualizer.LineSegment;
 import com.willwinder.universalgcodesender.visualizer.VisualizerUtils;
@@ -54,15 +55,13 @@ import static com.willwinder.ugs.nbm.visualizer.options.VisualizerOptions.*;
 public class GcodeModel extends Renderable {
     private static final Logger logger = Logger.getLogger(GcodeModel.class.getName());
 
-    private boolean forceOldStyle = false;
-    private boolean colorArrayDirty, vertexArrayDirty;
+    private boolean colorArrayDirty, vertexArrayDirty, vertexBufferDirty;
 
     // Gcode file data
     private String gcodeFile = null;
     private boolean isDrawable = false; //True if a file is loaded; false if not
     private List<LineSegment> gcodeLineList; //An ArrayList of linesegments composing the model
     private int currentCommandNumber = 0;
-    private int lastCommandNumber = 0;
 
     // OpenGL Object Buffer Variables
     private int numberOfVertices = -1;
@@ -95,8 +94,7 @@ public class GcodeModel extends Renderable {
         arcColor = vo.getOptionForKey(VISUALIZER_OPTION_ARC).value;
         plungeColor = vo.getOptionForKey(VISUALIZER_OPTION_PLUNGE).value;
         completedColor = vo.getOptionForKey(VISUALIZER_OPTION_COMPLETE).value;
-        updateVertexBuffers();
-        colorArrayDirty = true;
+        vertexBufferDirty = true;
     }
 
     /**
@@ -106,8 +104,7 @@ public class GcodeModel extends Renderable {
         this.gcodeFile = file;
         this.isDrawable = false;
         this.currentCommandNumber = 0;
-        this.lastCommandNumber = 0;
-        
+
         boolean result = generateObject();
         
         // Force a display in case an animator isn't running.
@@ -122,8 +119,7 @@ public class GcodeModel extends Renderable {
      */
     public void setCurrentCommandNumber(int num) {
         currentCommandNumber = num;
-        updateVertexBuffers();
-        colorArrayDirty = true;
+        vertexBufferDirty = true;
     }
 
     public List<LineSegment> getLineList() {
@@ -157,6 +153,7 @@ public class GcodeModel extends Renderable {
         GL2 gl = drawable.getGL().getGL2();
         
         // Batch mode if available 
+        boolean forceOldStyle = false;
         if(!forceOldStyle
                 && gl.isFunctionAvailable( "glGenBuffers" )
                 && gl.isFunctionAvailable( "glBindBuffer" )
@@ -164,6 +161,10 @@ public class GcodeModel extends Renderable {
                 && gl.isFunctionAvailable( "glDeleteBuffers" ) ) {
             
             // Initialize OpenGL arrays if required.
+            if (this.vertexBufferDirty && !vertexArrayDirty && !colorArrayDirty) {
+                updateVertexBuffers();
+                this.vertexBufferDirty = false;
+            }
             if (this.colorArrayDirty) {
                 this.updateGLColorArray(drawable);
                 this.colorArrayDirty = false;
@@ -225,7 +226,7 @@ public class GcodeModel extends Renderable {
             GcodeViewParse gcvp = new GcodeViewParse();
             logger.log(Level.INFO, "About to process {}", gcodeFile);
             try {
-                GcodeStreamReader gsr = new GcodeStreamReader(new File(gcodeFile));
+                IGcodeStreamReader gsr = new GcodeStreamReader(new File(gcodeFile));
                 gcodeLineList = gcvp.toObjFromReader(gsr, 0.3);
             } catch (GcodeStreamReader.NotGcodeStreamFile e) {
                 List<String> linesInFile;
@@ -241,7 +242,6 @@ public class GcodeModel extends Renderable {
             }
 
             // Grab the line number off the last line.
-            this.lastCommandNumber = gcodeLineList.get(gcodeLineList.size() - 1).getLineNumber();
 
             System.out.println("Object bounds: X ("+objectMin.x+", "+objectMax.x+")");
             System.out.println("               Y ("+objectMin.y+", "+objectMax.y+")");
@@ -291,7 +291,7 @@ public class GcodeModel extends Renderable {
             int vertIndex = 0;
             int colorIndex = 0;
             byte[] c = new byte[3];
-            for(LineSegment ls : gcodeLineList) {
+            for (LineSegment ls : gcodeLineList) {
                 // Find the lines color.
                 if (ls.isArc()) {
                     color = arcColor;
@@ -313,32 +313,32 @@ public class GcodeModel extends Renderable {
                     Point3d p1 = ls.getStart();
                     Point3d p2 = ls.getEnd();
 
-                    c[0] = (byte)color.getRed();
-                    c[1] = (byte)color.getGreen();
-                    c[2] = (byte)color.getBlue();
+                    c[0] = (byte) color.getRed();
+                    c[1] = (byte) color.getGreen();
+                    c[2] = (byte) color.getBlue();
 
                     // colors
                     //p1
                     lineColorData[colorIndex++] = c[0];
                     lineColorData[colorIndex++] = c[1];
                     lineColorData[colorIndex++] = c[2];
-                    
+
                     //p2
                     lineColorData[colorIndex++] = c[0];
                     lineColorData[colorIndex++] = c[1];
                     lineColorData[colorIndex++] = c[2];
-                    
+
                     // p1 location
-                    lineVertexData[vertIndex++] = (float)p1.x;
-                    lineVertexData[vertIndex++] = (float)p1.y;
-                    lineVertexData[vertIndex++] = (float)p1.z;
+                    lineVertexData[vertIndex++] = (float) p1.x;
+                    lineVertexData[vertIndex++] = (float) p1.y;
+                    lineVertexData[vertIndex++] = (float) p1.z;
                     //p2
-                    lineVertexData[vertIndex++] = (float)p2.x;
-                    lineVertexData[vertIndex++] = (float)p2.y;
-                    lineVertexData[vertIndex++] = (float)p2.z;
+                    lineVertexData[vertIndex++] = (float) p2.x;
+                    lineVertexData[vertIndex++] = (float) p2.y;
+                    lineVertexData[vertIndex++] = (float) p2.z;
                 }
             }
-            
+
             this.colorArrayDirty = true;
             this.vertexArrayDirty = true;
         }

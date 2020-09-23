@@ -1,5 +1,5 @@
 /*
-    Copyright 2015-2018 Will Winder
+    Copyright 2015-2020 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -19,21 +19,20 @@
 package com.willwinder.universalgcodesender;
 
 import com.willwinder.universalgcodesender.connection.ConnectionDriver;
+import com.willwinder.universalgcodesender.firmware.IFirmwareSettings;
 import com.willwinder.universalgcodesender.gcode.GcodeState;
 import com.willwinder.universalgcodesender.listeners.ControllerListener;
-import com.willwinder.universalgcodesender.listeners.ControllerState;
 import com.willwinder.universalgcodesender.listeners.ControllerStatus;
+import com.willwinder.universalgcodesender.model.Axis;
 import com.willwinder.universalgcodesender.model.Overrides;
+import com.willwinder.universalgcodesender.model.PartialPosition;
 import com.willwinder.universalgcodesender.model.UGSEvent.ControlState;
 import com.willwinder.universalgcodesender.model.UnitUtils;
 import com.willwinder.universalgcodesender.model.UnitUtils.Units;
-import com.willwinder.universalgcodesender.firmware.IFirmwareSettings;
-import com.willwinder.universalgcodesender.model.Axis;
 import com.willwinder.universalgcodesender.services.MessageService;
 import com.willwinder.universalgcodesender.types.GcodeCommand;
-import com.willwinder.universalgcodesender.utils.GcodeStreamReader;
+import com.willwinder.universalgcodesender.utils.IGcodeStreamReader;
 
-import java.io.File;
 import java.util.Optional;
 
 /**
@@ -68,38 +67,60 @@ public interface IController {
     Actions
     */
     void performHomingCycle() throws Exception;
-    void returnToHome() throws Exception;
+
+    /**
+     * Returns machine to home location, throw an exception if not supported.
+     *
+     * @param safetyHeightInMm the safety height to clear when returning to home
+     */
+    void returnToHome(double safetyHeightInMm) throws Exception;
     void resetCoordinatesToZero() throws Exception;
     void resetCoordinateToZero(final Axis coord) throws Exception;
 
     /**
-     * Sets the work position for a given axis to the position
+     * Sets the work position for any given axis to the position
      *
-     * @param axis the axis to change
-     * @param position the new position to set
+     * @param axisPosition the axis and the positions to change
      * @throws Exception if assigning the new position gave an error
      */
-    void setWorkPosition(Axis axis, double position) throws Exception;
-    
+    void setWorkPosition(PartialPosition axisPosition) throws Exception;
+
+
+
     void killAlarmLock() throws Exception;
     void toggleCheckMode() throws Exception;
     void viewParserState() throws Exception;
     void issueSoftReset() throws Exception;
 
     /**
-     * Jogs the machine in the direction specified by vector dirX,
-     * dirY, dirZ given the direction as 1, 0 or -1. The distance is specified by stepSize in the given units.
+     * Requests a status report from the controller with position and current state.
+     * This is usually used for updating the GUI with the live state of the machine.
      *
-     * @param dirX if the jogging should happen in X-direction, possible values are 1, 0 or -1
-     * @param dirY if the jogging should happen in Y-direction, possible values are 1, 0 or -1
-     * @param dirZ if the jogging should happen in Z-direction, possible values are 1, 0 or -1
-     * @param stepSize how long should we jog and is given in mm or inches
-     * @param feedRate how fast should we jog in the direction
-     * @param units the units of the stepSize
+     * @throws Exception if the request couldn't be made
+     */
+    void requestStatusReport() throws Exception;
+
+    /**
+     * Jogs the machine by a specified direction given distanceX, distanceY, distanceZ.
+     * The distance is specified by the given units and can be a positive or negative value.
+     *
+     * @param distanceX how long to jog on the X axis.
+     * @param distanceY how long to jog on the Y axis.
+     * @param distanceZ how long to jog on the Z axis.
+     * @param feedRate how fast should we jog in the given direction
+     * @param units the units of the distance and feed rate
      * @throws Exception if something went wrong when jogging
      */
-    void jogMachine(int dirX, int dirY, int dirZ,
-                    double stepSize, double feedRate, Units units) throws Exception;
+    void jogMachine(double distanceX, double distanceY, double distanceZ, double feedRate, Units units) throws Exception;
+
+
+    /**
+     * Jogs the machine to the given position. The feed rate is given in the same units / minute.
+     *
+     * @param position the position to move to
+     * @param feedRate the feed rate using the units in the position.
+     */
+    void jogMachineTo(PartialPosition position, double feedRate) throws Exception;
 
     /**
      * Probe control
@@ -123,9 +144,7 @@ public interface IController {
     
     void setStatusUpdateRate(int rate);
     int getStatusUpdateRate();
-    
-    long getJobLengthEstimate(File gcodeFile);
-    
+
     /*
     Serial
     */
@@ -176,8 +195,7 @@ public interface IController {
     */
     GcodeCommand createCommand(String gcode) throws Exception;
     void sendCommandImmediately(GcodeCommand cmd) throws Exception;
-    void queueCommand(GcodeCommand cmd) throws Exception;
-    void queueStream(GcodeStreamReader r);
+    void queueStream(IGcodeStreamReader r);
 
     /**
      * Cancel the running command and clear the command queue.
@@ -187,7 +205,7 @@ public interface IController {
     void restoreParserModalState();
     void updateParserModalState(GcodeCommand command);
 
-    AbstractCommunicator getCommunicator();
+    ICommunicator getCommunicator();
 
     /**
      * Returns the capabilities that is supported by the controller

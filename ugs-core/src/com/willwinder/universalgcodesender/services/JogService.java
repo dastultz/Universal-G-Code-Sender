@@ -19,7 +19,9 @@
 package com.willwinder.universalgcodesender.services;
 
 import com.willwinder.universalgcodesender.model.BackendAPI;
+import com.willwinder.universalgcodesender.model.PartialPosition;
 import com.willwinder.universalgcodesender.model.UnitUtils.Units;
+import com.willwinder.universalgcodesender.utils.Settings;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,19 +32,11 @@ import java.util.logging.Logger;
  */
 public class JogService {
     private static final Logger logger = Logger.getLogger(JogService.class.getSimpleName());
-    private double stepSizeXY = 1;
-    private double stepSizeZ = 1;
-    private Units units;
 
     private final BackendAPI backend;
 
     public JogService(BackendAPI backend) {
         this.backend = backend;
-
-        // Init from settings.
-        stepSizeXY = backend.getSettings().getManualModeStepSize();
-        stepSizeZ = backend.getSettings().getzJogStepSize();
-        units = backend.getSettings().getPreferredUnits();
     }
 
     public static double increaseSize(double size) {
@@ -69,7 +63,11 @@ public class JogService {
     }
 
     private static double divideSize(double size) {
-        if (size > 100) {
+        if (size > 10000) {
+            return 10000;
+        } else if (size <= 10000 && size > 1000) {
+            return 1000;
+        } else if (size <= 1000 && size > 100) {
             return 100;
         } else if (size <= 100 && size > 10) {
             return 10;
@@ -88,46 +86,50 @@ public class JogService {
             return 0.01;
         } else if (size >= 0.01 && size < 0.1) {
             return 0.1;
-        }  else if (size >= 0.1 && size < 1) {
+        } else if (size >= 0.1 && size < 1) {
             return 1;
-        }  else if (size >= 1 && size < 10) {
+        } else if (size >= 1 && size < 10) {
             return 10;
-        }  else if (size >= 10) {
+        } else if (size >= 10 && size < 100) {
             return 100;
+        } else if (size >= 100 && size < 1000) {
+            return 1000;
+        } else if (size >= 1000 && size < 10000) {
+            return 10000;
         }
         return size;
     }
 
     public void increaseXYStepSize() {
-        setStepSizeXY(increaseSize(stepSizeXY));
+        setStepSizeXY(increaseSize(getStepSizeXY()));
     }
 
     public void decreaseXYStepSize() {
-        setStepSizeXY(decreaseSize(stepSizeXY));
+        setStepSizeXY(decreaseSize(getStepSizeXY()));
     }
 
     public void increaseZStepSize() {
-        setStepSizeZ(increaseSize(stepSizeZ));
+        setStepSizeZ(increaseSize(getStepSizeZ()));
     }
 
     public void decreaseZStepSize() {
-        setStepSizeZ(decreaseSize(stepSizeZ));
+        setStepSizeZ(decreaseSize(getStepSizeZ()));
     }
 
     public void divideXYStepSize() {
-        setStepSizeXY(divideSize(stepSizeXY));
+        setStepSizeXY(divideSize(getStepSizeXY()));
     }
 
     public void divideZStepSize() {
-        setStepSizeZ(divideSize(stepSizeZ));
+        setStepSizeZ(divideSize(getStepSizeZ()));
     }
 
     public void multiplyXYStepSize() {
-        setStepSizeXY(multiplySize(stepSizeXY));
+        setStepSizeXY(multiplySize(getStepSizeXY()));
     }
 
     public void multiplyZStepSize() {
-        setStepSizeZ(multiplySize(stepSizeZ));
+        setStepSizeZ(multiplySize(getStepSizeZ()));
     }
 
     public void multiplyFeedRate() {
@@ -147,63 +149,65 @@ public class JogService {
     }
 
     public void setStepSizeXY(double size) {
-        this.stepSizeXY = size;
-        backend.getSettings().setManualModeStepSize(stepSizeXY);
+        getSettings().setManualModeStepSize(size);
+    }
+
+    private Settings getSettings() {
+        return backend.getSettings();
     }
 
     public void setStepSizeZ(double size) {
-        this.stepSizeZ = size;
-        backend.getSettings().setzJogStepSize(stepSizeZ);
+        getSettings().setzJogStepSize(size);
     }
 
     public void setFeedRate(double rate) {
         if( rate < 1 ) {
-            backend.getSettings().setJogFeedRate(1);
+            getSettings().setJogFeedRate(1);
         } else {
-            backend.getSettings().setJogFeedRate(rate);
+            getSettings().setJogFeedRate(rate);
         }
     }
 
     public int getFeedRate() {
-        return Double.valueOf(backend.getSettings().getJogFeedRate()).intValue();
+        return Double.valueOf(getSettings().getJogFeedRate()).intValue();
     }
 
     public void setUnits(Units units) {
-        this.units = units;
         if (units != null) {
-            backend.getSettings().setPreferredUnits(units);
+            getSettings().setPreferredUnits(units);
         }
     }
     
     public Units getUnits() {
-        return this.units;
+        return getSettings().getPreferredUnits();
     }
 
     /**
-     * Adjusts the Z axis location.
+     * Adjusts the location for each axises.
      */
-    public void adjustManualLocation(int x, int y, int z, double stepSize) {
+    public void adjustManualLocation(double distanceX, double distanceY, double distanceZ) {
         try {
-            double feedRate = backend.getSettings().getJogFeedRate();
-            this.backend.adjustManualLocation(x, y, z, stepSize, feedRate, units);
+            double feedRate = getSettings().getJogFeedRate();
+            Units units = getSettings().getPreferredUnits();
+            backend.adjustManualLocation(distanceX, distanceY, distanceZ, feedRate, units);
         } catch (Exception e) {
-            //NotifyDescriptor nd = new NotifyDescriptor.Message(e.getMessage(), NotifyDescriptor.ERROR_MESSAGE);
-            //DialogDisplayer.getDefault().notify(nd);
+            // Not much we can do
         }
     }
-    
+
     /**
      * Adjusts the Z axis location.
      * @param z direction.
      */
     public void adjustManualLocationZ(int z) {
         try {
-            double stepSize = stepSizeZ;
+            double stepSize = getStepSizeZ();
             if (!useStepSizeZ()) {
-                stepSize = stepSizeXY;
+                stepSize = getStepSizeXY();
             }
-            double feedRate = backend.getSettings().getJogFeedRate();
-            this.backend.adjustManualLocation(0, 0, z, stepSize, feedRate, units);
+            double feedRate = getSettings().getJogFeedRate();
+            Units preferredUnits = getSettings().getPreferredUnits();
+            backend.adjustManualLocation(0, 0, z * stepSize, feedRate, preferredUnits);
         } catch (Exception e) {
             //NotifyDescriptor nd = new NotifyDescriptor.Message(e.getMessage(), NotifyDescriptor.ERROR_MESSAGE);
             //DialogDisplayer.getDefault().notify(nd);
@@ -211,7 +215,7 @@ public class JogService {
     }
 
     public boolean useStepSizeZ() {
-        return this.backend.getSettings().useZStepSize();
+        return getSettings().useZStepSize();
     }
 
     /**
@@ -221,8 +225,10 @@ public class JogService {
      */
     public void adjustManualLocationXY(int x, int y) {
         try {
-            double feedRate = backend.getSettings().getJogFeedRate();
-            this.backend.adjustManualLocation(x, y, 0, stepSizeXY, feedRate, units);
+            double feedRate = getFeedRate();
+            double stepSize = getStepSizeXY();
+            Units preferredUnits = getUnits();
+            backend.adjustManualLocation(x * stepSize, y * stepSize, 0, feedRate, preferredUnits);
         } catch (Exception e) {
             //NotifyDescriptor nd = new NotifyDescriptor.Message(e.getMessage(), NotifyDescriptor.ERROR_MESSAGE);
             //DialogDisplayer.getDefault().notify(nd);
@@ -236,18 +242,26 @@ public class JogService {
     }
 
     public double getStepSizeXY() {
-        return backend.getSettings().getManualModeStepSize();
+        return getSettings().getManualModeStepSize();
     }
 
     public double getStepSizeZ() {
-        return backend.getSettings().getzJogStepSize();
+        return getSettings().getzJogStepSize();
     }
 
     public void cancelJog() {
         try {
-            this.backend.getController().cancelSend();
+            backend.getController().cancelSend();
         } catch (Exception e) {
             logger.log(Level.WARNING, "Couldn't cancel the jog", e);
+        }
+    }
+
+    public void jogTo(PartialPosition position) {
+        try {
+            backend.getController().jogMachineTo(position, getFeedRate());
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Couldn't jog to position " + position, e);
         }
     }
 }

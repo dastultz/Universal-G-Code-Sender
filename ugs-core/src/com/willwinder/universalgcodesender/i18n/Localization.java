@@ -22,7 +22,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.text.DecimalFormatSymbols;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
@@ -36,7 +38,10 @@ import java.util.logging.Logger;
 public class Localization {
     private static final Logger logger = Logger.getLogger(Localization.class.getName());
     public final static DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance();
-    static {dfs.setDecimalSeparator('.');}
+    static {
+        dfs.setDecimalSeparator('.');
+        dfs.setMinusSign('-');
+    }
 
     private static ResourceBundle bundle = null;
     private static ResourceBundle english = null;
@@ -123,6 +128,12 @@ public class Localization {
         }
 
         return result;
+    }
+
+    public static Map<String, String> getStrings() {
+        Map<String, String> texts = new HashMap<>();
+        bundle.keySet().forEach(key -> texts.put(key, bundle.getString(key)));
+        return texts;
     }
 
     private static int getEnglishKeyCount() {

@@ -48,16 +48,13 @@ public class SettingsTest {
         assertFalse(target.isAutoReconnect());
         assertFalse(target.isCommandTableEnabled());
         assertEquals("mm", target.getPreferredUnits().abbreviation);
-        assertTrue(target.isDisplayStateColor());
         assertNotNull(target.getFileStats());
         assertEquals("GRBL", target.getFirmwareVersion());
         assertEquals(Double.valueOf(10.0), Double.valueOf(target.getJogFeedRate()));
         assertEquals("en_US", target.getLanguage());
-        assertEquals(Integer.valueOf(1), target.getNumMacros());
         assertNotNull(target.getMainWindowSettings());
         assertFalse(target.isManualModeEnabled());
         assertEquals(Double.valueOf(1.0), Double.valueOf(target.getManualModeStepSize()));
-        assertNotNull(target.getPendantConfig());
         assertEquals("", target.getPort());
         assertEquals("115200", target.getPortRate());
         assertTrue(target.isScrollWindowEnabled());
@@ -70,6 +67,7 @@ public class SettingsTest {
         assertFalse(target.isVerboseOutputEnabled());
         assertNotNull(target.getVisualizerWindowSettings());
         assertEquals(Double.valueOf(1), Double.valueOf(target.getzJogStepSize()));
+        assertFalse(target.isAutoStartPendant());
     }
 
     @Test

@@ -26,6 +26,7 @@ import com.willwinder.universalgcodesender.listeners.ControllerState;
 import com.willwinder.universalgcodesender.listeners.ControllerStatus;
 import com.willwinder.universalgcodesender.model.Axis;
 import com.willwinder.universalgcodesender.model.Overrides;
+import com.willwinder.universalgcodesender.model.PartialPosition;
 import com.willwinder.universalgcodesender.model.Position;
 import com.willwinder.universalgcodesender.model.UnitUtils;
 import com.willwinder.universalgcodesender.model.WorkCoordinateSystem;
@@ -34,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -107,14 +109,14 @@ public class TinyGUtils {
         return false;
     }
 
-    public static String getVersion(JsonObject response) {
+    public static double getVersion(JsonObject response) {
         if (response.has(FIELD_RESPONSE)) {
             JsonObject jo = response.getAsJsonObject(FIELD_RESPONSE);
             if (jo.has(FIELD_FIRMWARE_VERSION)) {
-                return jo.get(FIELD_FIRMWARE_VERSION).getAsString();
+                return jo.get(FIELD_FIRMWARE_VERSION).getAsDouble();
             }
         }
-        return "";
+        return 0;
     }
 
     public static boolean isRestartingResponse(JsonObject response) {
@@ -140,7 +142,7 @@ public class TinyGUtils {
     }
 
     public static boolean isStatusResponse(JsonObject response) {
-        return response.has("sr");
+        return response.has(TinyGUtils.FIELD_STATUS_REPORT) && response.get(TinyGUtils.FIELD_STATUS_REPORT).isJsonObject();
     }
 
     /**
@@ -151,7 +153,7 @@ public class TinyGUtils {
      * @return a new updated controller status
      */
     public static ControllerStatus updateControllerStatus(final ControllerStatus lastControllerStatus, final JsonObject response) {
-        if (response.has(FIELD_STATUS_REPORT)) {
+        if (isStatusResponse(response)) {
             JsonObject statusResultObject = response.getAsJsonObject(FIELD_STATUS_REPORT);
 
             Position workCoord = lastControllerStatus.getWorkCoord();
@@ -218,10 +220,8 @@ public class TinyGUtils {
             }
 
             ControllerState state = lastControllerStatus.getState();
-            String stateString = lastControllerStatus.getStateString();
             if (hasNumericField(statusResultObject, FIELD_STATUS_REPORT_STATUS)) {
                 state = getState(statusResultObject.get(FIELD_STATUS_REPORT_STATUS).getAsInt());
-                stateString = getStateAsString(statusResultObject.get(FIELD_STATUS_REPORT_STATUS).getAsInt());
             }
 
             Double spindleSpeed = lastControllerStatus.getSpindleSpeed();
@@ -230,7 +230,7 @@ public class TinyGUtils {
             ControllerStatus.AccessoryStates accessoryStates = lastControllerStatus.getAccessoryStates();
 
             ControllerStatus.OverridePercents overrides = new ControllerStatus.OverridePercents(overrideFeed, overrideRapid, overrideSpindle);
-            return new ControllerStatus(stateString, state, machineCoord, workCoord, feedSpeed, feedSpeedUnits, spindleSpeed, overrides, workCoordinateOffset, enabledPins, accessoryStates);
+            return new ControllerStatus(state, machineCoord, workCoord, feedSpeed, feedSpeedUnits, spindleSpeed, overrides, workCoordinateOffset, enabledPins, accessoryStates);
         }
 
         return lastControllerStatus;
@@ -277,11 +277,6 @@ public class TinyGUtils {
         }
     }
 
-    private static String getStateAsString(int state) {
-        ControllerState controllerState = getState(state);
-        return controllerState.name();
-    }
-
     /**
      * Generates a command for resetting the coordinates for the current coordinate system to zero.
      *
@@ -303,16 +298,21 @@ public class TinyGUtils {
      *
      * @param controllerStatus the current controller status
      * @param gcodeState       the current gcode state
-     * @param axis             the axis to set
-     * @param position         the position to set
+     * @param positions        the position to set
      * @return a command for setting the position
      */
-    public static String generateSetWorkPositionCommand(ControllerStatus controllerStatus, GcodeState gcodeState, Axis axis, double position) {
+    public static String generateSetWorkPositionCommand(ControllerStatus controllerStatus, GcodeState gcodeState, PartialPosition positions) {
         int offsetCode = WorkCoordinateSystem.fromGCode(gcodeState.offset).getPValue();
         Position machineCoord = controllerStatus.getMachineCoord();
-        double coordinate = -(position - machineCoord.get(axis));
-        return "G10 L2 P" + offsetCode + " " +
-                axis.name() + Utils.formatter.format(coordinate);
+
+
+        PartialPosition.Builder offsets = new PartialPosition.Builder();
+        for (Map.Entry<Axis, Double> position : positions.getAll().entrySet()) {
+            double axisOffset = -(position.getValue() - machineCoord.get(position.getKey()));
+            offsets.setValue(position.getKey(), axisOffset);
+
+        }
+        return "G10 L2 P" + offsetCode + " " + offsets.build().getFormattedGCode();
     }
 
     /**
@@ -323,7 +323,7 @@ public class TinyGUtils {
      */
     public static List<String> convertStatusReportToGcode(JsonObject response) {
         List<String> gcodeList = new ArrayList<>();
-        if (response.has(TinyGUtils.FIELD_STATUS_REPORT)) {
+        if (isStatusResponse(response)) {
             JsonObject statusResultObject = response.getAsJsonObject(TinyGUtils.FIELD_STATUS_REPORT);
 
             if (hasNumericField(statusResultObject, TinyGUtils.FIELD_STATUS_REPORT_COORD)) {
@@ -387,7 +387,7 @@ public class TinyGUtils {
     }
 
     private static boolean hasNumericField(JsonObject statusResultObject, String fieldName) {
-        return statusResultObject.has(fieldName) &&
+        return statusResultObject.has(fieldName) && !statusResultObject.get(fieldName).isJsonNull() &&
                 NUMBER_REGEX.matcher(statusResultObject.get(fieldName).getAsString()).matches();
     }
 

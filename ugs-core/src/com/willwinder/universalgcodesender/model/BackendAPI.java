@@ -23,10 +23,12 @@ import com.willwinder.universalgcodesender.IController;
 import com.willwinder.universalgcodesender.gcode.GcodeParser;
 import com.willwinder.universalgcodesender.listeners.MessageListener;
 import com.willwinder.universalgcodesender.listeners.MessageType;
+import com.willwinder.universalgcodesender.model.UnitUtils.Units;
 import com.willwinder.universalgcodesender.types.GcodeCommand;
 import com.willwinder.universalgcodesender.utils.Settings;
-import com.willwinder.universalgcodesender.model.UnitUtils.Units;
+
 import java.io.File;
+import java.util.List;
 
 /**
  * API used by front ends to interface with the model.
@@ -34,6 +36,22 @@ import java.io.File;
 public interface BackendAPI extends BackendAPIReadOnly {
     // Config options
     void setGcodeFile(File file) throws Exception;
+
+    /**
+     * Returns a list of files from the configured workspace directory
+     *
+     * @return a list of files in the workspace
+     */
+    List<String> getWorkspaceFileList();
+
+    /**
+     * Opens a gcode file from the workspace directory. Just supply one of the files from
+     * the method {@link #getWorkspaceFileList()}.
+     *
+     * @param file the file to open
+     */
+    void openWorkspaceFile(String file) throws Exception;
+
     void applySettings(Settings settings) throws Exception;
 
     /**
@@ -57,7 +75,19 @@ public interface BackendAPI extends BackendAPIReadOnly {
     void sendGcodeCommand(String commandText) throws Exception;
     void sendGcodeCommand(boolean restoreParserState, String commandText) throws Exception;
     void sendGcodeCommand(GcodeCommand command) throws Exception;
-    void adjustManualLocation(int dirX, int dirY, int dirZ, double stepSize, double feedRate, Units units) throws Exception;
+
+    /**
+     * Jogs the machine by a specified direction given distanceX, distanceY, distanceZ.
+     * The distance is specified by the given units and can be a positive or negative value.
+     *
+     * @param distanceX how long to jog on the X axis.
+     * @param distanceY how long to jog on the Y axis.
+     * @param distanceZ how long to jog on the Z axis.
+     * @param feedRate how fast should we jog in the given direction
+     * @param units the units of the distance and feed rate
+     * @throws Exception if something went wrong when jogging
+     */
+    void adjustManualLocation(double distanceX, double distanceY, double distanceZ, double feedRate, Units units) throws Exception;
 
     void probe(String axis, double feedRate, double distance, UnitUtils.Units units) throws Exception;
     void offsetTool(String axis, double offset, UnitUtils.Units units) throws Exception;
@@ -72,14 +102,14 @@ public interface BackendAPI extends BackendAPIReadOnly {
     /**
      * Sets the work position for a given axis to a position.
      *
-     * @param axis the axis to change
-     * @param position the position to set the axis to.
+     * @param position the position to set the one or more axis to set
      * @throws Exception
      */
-    void setWorkPosition(Axis axis, double position) throws Exception;
+    void setWorkPosition(PartialPosition position) throws Exception;
+
 
     /**
-     * Sets the work position for a given axis to a position defined by an mathimatical
+     * Sets the work position for a given axis to a position defined by an mathematical
      * expression. The character '#' will be replaced by the current work position. If the
      * expression starts with '/' or '*' the expression will be prepended with the current
      * work position.

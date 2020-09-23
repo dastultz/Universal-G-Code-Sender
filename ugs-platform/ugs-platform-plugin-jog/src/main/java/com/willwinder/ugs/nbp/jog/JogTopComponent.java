@@ -1,5 +1,5 @@
 /*
-    Copyright 2018 Will Winder
+    Copyright 2018-2019 Will Winder
 
     This file is part of Universal Gcode Sender (UGS).
 
@@ -21,16 +21,12 @@ package com.willwinder.ugs.nbp.jog;
 import com.willwinder.ugs.nbp.jog.actions.UseSeparateStepSizeAction;
 import com.willwinder.ugs.nbp.lib.lookup.CentralLookup;
 import com.willwinder.ugs.nbp.lib.services.LocalizingService;
-import com.willwinder.universalgcodesender.listeners.ControllerListener;
-import com.willwinder.universalgcodesender.listeners.ControllerStatus;
 import com.willwinder.universalgcodesender.listeners.UGSEventListener;
-import com.willwinder.universalgcodesender.model.Alarm;
 import com.willwinder.universalgcodesender.model.BackendAPI;
-import com.willwinder.universalgcodesender.model.Position;
 import com.willwinder.universalgcodesender.model.UGSEvent;
 import com.willwinder.universalgcodesender.model.UnitUtils;
 import com.willwinder.universalgcodesender.services.JogService;
-import com.willwinder.universalgcodesender.types.GcodeCommand;
+import com.willwinder.universalgcodesender.utils.ContinuousJogWorker;
 import com.willwinder.universalgcodesender.utils.SwingHelpers;
 import org.openide.awt.ActionID;
 import org.openide.awt.ActionReference;
@@ -38,10 +34,7 @@ import org.openide.windows.TopComponent;
 
 import java.awt.*;
 import org.openide.util.Lookup;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+
 import javax.swing.JPopupMenu;
 
 /**
@@ -64,36 +57,22 @@ import javax.swing.JPopupMenu;
         displayName = "Jog Controller",
         preferredID = "JogTopComponent"
 )
-public final class JogTopComponent extends TopComponent implements UGSEventListener, ControllerListener, JogPanelListener {
+public final class JogTopComponent extends TopComponent implements UGSEventListener, JogPanelListener {
 
     public static final String WINOW_PATH = LocalizingService.MENU_WINDOW_PLUGIN;
     public static final String CATEGORY = LocalizingService.CATEGORY_WINDOW;
     public static final String ACTION_ID = "com.willwinder.ugs.nbp.jog.JogTopComponent";
 
-    /**
-     * The inteval in milliseconds to send jog commands to the controller when
-     * continuous jog is activated. This should be long enough so that the queue
-     * isn't filled up.
-     */
-    private static final int LONG_PRESS_JOG_INTERVAL = 500;
-
-    /**
-     * The step size for continuous jog commands. These should be long enough
-     * to keep the controller jogging before a new jog command is queued.
-     */
-    private static final double LONG_PRESS_MM_STEP_SIZE = 5;
-    private static final double LONG_PRESS_INCH_STEP_SIZE = 0.2;
-
     private final BackendAPI backend;
     private final JogPanel jogPanel;
     private final JogService jogService;
-    private static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
-    private ScheduledFuture<?> continuousJogSchedule;
+    private final ContinuousJogWorker continuousJogWorker;
 
     public JogTopComponent() {
         backend = CentralLookup.getDefault().lookup(BackendAPI.class);
         jogService = CentralLookup.getDefault().lookup(JogService.class);
-        UseSeparateStepSizeAction action = Lookup.getDefault().lookup(UseSeparateStepSizeAction.class);
+        continuousJogWorker = new ContinuousJogWorker(backend, jogService);
+        UseSeparateStepSizeAction separateStepSizeAction = Lookup.getDefault().lookup(UseSeparateStepSizeAction.class);
 
         jogPanel = new JogPanel();
         jogPanel.setEnabled(jogService.canJog());
@@ -103,9 +82,8 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
         jogPanel.setUnit(jogService.getUnits());
         jogPanel.setUseStepSizeZ(jogService.useStepSizeZ());
         jogPanel.addListener(this);
-        
+
         backend.addUGSEventListener(this);
-        backend.addControllerListener(this);
 
         setLayout(new BorderLayout());
         setName(LocalizingService.JogControlTitle);
@@ -115,9 +93,9 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
 
         add(jogPanel, BorderLayout.CENTER);
 
-        if (action != null) {
+        if (separateStepSizeAction != null) {
             JPopupMenu popupMenu = new JPopupMenu();
-            popupMenu.add(action);
+            popupMenu.add(separateStepSizeAction);
             SwingHelpers.traverse(this, (comp) -> comp.setComponentPopupMenu(popupMenu));
         }
     }
@@ -126,7 +104,9 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
     protected void componentClosed() {
         super.componentClosed();
         backend.removeUGSEventListener(this);
-        backend.removeControllerListener(this);
+
+        continuousJogWorker.stop();
+        backend.removeControllerListener(continuousJogWorker);
     }
 
     @Override
@@ -143,59 +123,6 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
             jogPanel.setUnit(backend.getSettings().getPreferredUnits());
             jogPanel.setUseStepSizeZ(backend.getSettings().useZStepSize());
         }
-    }
-
-    @Override
-    public void controlStateChange(UGSEvent.ControlState state) {
-    }
-
-    @Override
-    public void fileStreamComplete(String filename, boolean success) {
-
-    }
-
-    @Override
-    public void receivedAlarm(Alarm alarm) {
-
-    }
-
-    @Override
-    public void commandSkipped(GcodeCommand command) {
-
-    }
-
-    @Override
-    public void commandSent(GcodeCommand command) {
-
-    }
-
-    @Override
-    public void commandComplete(GcodeCommand command) {
-        // If there is a command with an error, assume we are jogging and cancel any event
-        if (command.isError() && continuousJogSchedule != null) {
-            continuousJogSchedule.cancel(true);
-            jogService.cancelJog();
-        }
-    }
-
-    @Override
-    public void commandComment(String comment) {
-
-    }
-
-    @Override
-    public void probeCoordinates(Position p) {
-
-    }
-
-    @Override
-    public void statusStringListener(ControllerStatus status) {
-
-    }
-
-    @Override
-    public void postProcessData(int numRows) {
-
     }
 
     @Override
@@ -238,6 +165,14 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
                     jogService.setUnits(UnitUtils.Units.MM);
                 }
                 break;
+            case BUTTON_LARGER_STEP:
+                jogService.multiplyXYStepSize();
+                jogService.multiplyZStepSize();
+                break;
+            case BUTTON_SMALLER_STEP:
+                jogService.divideXYStepSize();
+                jogService.divideZStepSize();
+                break;
             default:
         }
     }
@@ -245,62 +180,14 @@ public final class JogTopComponent extends TopComponent implements UGSEventListe
     @Override
     public void onButtonLongPressed(JogPanelButtonEnum button) {
         if (backend.getController().getCapabilities().hasContinuousJogging()) {
-
-            // Cancel any previous jogging
-            if (continuousJogSchedule != null) {
-                continuousJogSchedule.cancel(true);
-            }
-
-            continuousJogSchedule = EXECUTOR_SERVICE.scheduleAtFixedRate(() -> {
-                // TODO add a check so that no more than one or two jog commands are queued on the controller. Otherwise a soft limit may trigger if too many commands are queued.
-                double stepSize = LONG_PRESS_MM_STEP_SIZE;
-                if (jogService.getUnits() == UnitUtils.Units.INCH) {
-                    stepSize = LONG_PRESS_INCH_STEP_SIZE;
-                }
-
-                switch (button) {
-                    case BUTTON_XNEG:
-                        jogService.adjustManualLocation(-1, 0, 0, stepSize);
-                        break;
-                    case BUTTON_XPOS:
-                        jogService.adjustManualLocation(1, 0, 0, stepSize);
-                        break;
-                    case BUTTON_YNEG:
-                        jogService.adjustManualLocation(0, -10, 0, stepSize);
-                        break;
-                    case BUTTON_YPOS:
-                        jogService.adjustManualLocation(0, 10, 0, stepSize);
-                        break;
-                    case BUTTON_DIAG_XNEG_YNEG:
-                        jogService.adjustManualLocation(-1, -1, 0, stepSize);
-                        break;
-                    case BUTTON_DIAG_XNEG_YPOS:
-                        jogService.adjustManualLocation(-1, 1, 0, stepSize);
-                        break;
-                    case BUTTON_DIAG_XPOS_YNEG:
-                        jogService.adjustManualLocation(1, -1, 0, stepSize);
-                        break;
-                    case BUTTON_DIAG_XPOS_YPOS:
-                        jogService.adjustManualLocation(1, 1, 0, stepSize);
-                        break;
-                    case BUTTON_ZNEG:
-                        jogService.adjustManualLocation(0, 0, -1, stepSize);
-                        break;
-                    case BUTTON_ZPOS:
-                        jogService.adjustManualLocation(0, 0, 1, stepSize);
-                        break;
-                    default:
-                }
-            }, 0, LONG_PRESS_JOG_INTERVAL, TimeUnit.MILLISECONDS);
+            continuousJogWorker.setDirection(button.getX(), button.getY(), button.getZ());
+            continuousJogWorker.start();
         }
     }
 
     @Override
     public void onButtonLongReleased(JogPanelButtonEnum button) {
-        if( continuousJogSchedule != null ) {
-            continuousJogSchedule.cancel(true);
-        }
-        jogService.cancelJog();
+        continuousJogWorker.stop();
     }
 
     @Override

@@ -23,7 +23,7 @@ import com.willwinder.universalgcodesender.firmware.FirmwareSetting;
 import com.willwinder.universalgcodesender.firmware.FirmwareSettingsException;
 import com.willwinder.universalgcodesender.firmware.IFirmwareSettings;
 import com.willwinder.universalgcodesender.firmware.IFirmwareSettingsListener;
-import com.willwinder.universalgcodesender.listeners.SerialCommunicatorListener;
+import com.willwinder.universalgcodesender.listeners.CommunicatorListener;
 import com.willwinder.universalgcodesender.model.Axis;
 import com.willwinder.universalgcodesender.model.UnitUtils;
 import com.willwinder.universalgcodesender.types.GcodeCommand;
@@ -41,15 +41,15 @@ import java.util.logging.Logger;
  *
  * @author Joacim Breiler
  */
-public class TinyGFirmwareSettings implements SerialCommunicatorListener, IFirmwareSettings, IFirmwareSettingsListener {
+public class TinyGFirmwareSettings implements CommunicatorListener, IFirmwareSettings, IFirmwareSettingsListener {
     private static final Logger LOGGER = Logger.getLogger(TinyGFirmwareSettings.class.getName());
 
     private final Map<String, FirmwareSetting> settings = new ConcurrentHashMap<>();
 
-    private final TinyGFirmwareSettingsSerialCommunicator serialCommunicatorDelegate;
+    private final TinyGFirmwareSettingsCommunicatorListener serialCommunicatorDelegate;
 
     public TinyGFirmwareSettings(IController controller) {
-        this.serialCommunicatorDelegate = new TinyGFirmwareSettingsSerialCommunicator(controller);
+        this.serialCommunicatorDelegate = new TinyGFirmwareSettingsCommunicatorListener(controller);
         this.serialCommunicatorDelegate.addListener(this);
     }
 
@@ -136,12 +136,12 @@ public class TinyGFirmwareSettings implements SerialCommunicatorListener, IFirmw
     }
 
     @Override
-    public void setStepsPerMillimeter(Axis axis, int stepsPerMillimeter) throws FirmwareSettingsException {
+    public void setStepsPerMillimeter(Axis axis, double stepsPerMillimeter) throws FirmwareSettingsException {
 
     }
 
     @Override
-    public int getStepsPerMillimeter(Axis axis) throws FirmwareSettingsException {
+    public double getStepsPerMillimeter(Axis axis) throws FirmwareSettingsException {
         return 0;
     }
 
