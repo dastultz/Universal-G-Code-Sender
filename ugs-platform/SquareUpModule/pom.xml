@@ -12,7 +12,6 @@
   <packaging>nbm</packaging>  
   <name>SquareUpModule</name>
   <build>
-
     <plugins>
       <plugin> 
         <groupId>org.codehaus.mojo</groupId>  
@@ -23,6 +22,13 @@
         <groupId>org.jetbrains.kotlin</groupId>
         <artifactId>kotlin-maven-plugin</artifactId>
         <version>${ugs.kotlin.version}</version>
+        <configuration>
+          <sourceDirs>
+            <source>${project.basedir}/src/main/java</source>
+            <source>${project.basedir}/src/main/kotlin</source>
+            <source>${project.basedir}/src/main/resources</source>
+          </sourceDirs>
+        </configuration>
         <executions>
           <execution>
             <id>compile</id>
@@ -32,15 +38,15 @@
             </goals>
             <configuration>
               <sourceDirs>
-                <source>src/main/java</source>
-                <source>src/main/kotlin</source>
-                <source>src/main/resources</source>
+                <source>${project.basedir}/src/main/java</source>
+                <source>${project.basedir}/src/main/kotlin</source>
+                <source>${project.basedir}/src/main/resources</source>
               </sourceDirs>
             </configuration>
           </execution>
         </executions>
       </plugin>
-      <plugin> 
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>  
         <artifactId>maven-compiler-plugin</artifactId> 
       </plugin>  
@@ -110,7 +116,7 @@
     <dependency> 
       <groupId>org.mockito</groupId>  
       <artifactId>mockito-core</artifactId>  
-      <version>2.7.22</version>  
+      <version>${mockito.version}</version>
       <scope>test</scope>  
       <type>jar</type> 
     </dependency>  
@@ -123,7 +129,7 @@
     <dependency> 
       <groupId>org.jetbrains.kotlin</groupId>  
       <artifactId>kotlin-stdlib</artifactId>  
-      <version>1.1.1</version> 
+      <version>${ugs.kotlin.version}</version>
     </dependency> 
   </dependencies> 
 </project>
